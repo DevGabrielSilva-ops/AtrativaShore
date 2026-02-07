@@ -1,0 +1,91 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Inter", sans-serif;
+  
+}
+
+body {
+  min-height: 100vh;
+  background-image: url("icons/plano-fundo.fw.png");
+  background-size: cover;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.login-container {
+  width: 410px;
+  
+}
+
+.login-card {
+  background: #f19bff;
+  border-radius: 20px;
+  padding: 50px;
+}
+
+.logo {
+  display: block;
+  margin: 0 auto 25px;
+  width: 220px;
+}
+
+.input-group {
+  display: flex;
+  align-items: center;
+  background: #f6eded;
+  border-radius: 12px;
+  padding: 12px 15px;
+  margin-bottom: 18px;
+}
+
+.input-group .icon {
+  font-size: 20px;
+  color: #8b1b85;
+  margin-right: 12px;
+}
+
+.input-group input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  width: 100%;
+  color: #8b1b85;
+}
+
+.input-group input::placeholder {
+  color: #8b1b85;
+  font-weight: bold;
+}
+
+.Btn-ações {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.link {
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: bold;
+  color: #8b1b85;
+}
+
+.btn {
+  border: none;
+  padding: 10px 22px;
+  border-radius: 10px;
+  background: #f6eded;
+  color: #8b1b85;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.btn:hover {
+  opacity: 0.75s;
+  color: #f19bff;
+}
