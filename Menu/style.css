@@ -84,7 +84,11 @@
     }
 
     #img-card{
-        display: flex;
-        justify-content: center;
-        align-items: center;
+       display: flex;
+       justify-content: center;
+       align-items: center;
+    }
+
+    #baixo{
+        margin-top: 15px;
     }
