@@ -1,4 +1,4 @@
- *{
+*{
         margin: 0px;
         padding: 0px;
         box-sizing: border-box;
@@ -63,11 +63,37 @@
     }
 
     #mensagem{
+        font-size: 25px;
         margin-left: 5vh;
         margin-top: 5vh;
     }
 
-    #venda-layout{
+    #card-menu{
+        display: grid;
+        margin-left: 12vh;
+        grid-template-columns: 2fr 2fr 2fr;
+        gap: 8vh;
+        margin-top: 5vh;
+    }
+
+    #card-layout{
+        max-width: 300px;
+        min-height: 167px;
+        border-radius: 15px;
+        background-color: #FEFCFE;
+    }
+
+    #img-card{
+       display: flex;
+       justify-content: center;
+       align-items: center;
+    }
+
+    #baixo{
+        margin-top: 15px;
+    }
+
+     #venda-layout{
         background-color: #FFFFFF;
         width: 95%;
         height: 68vh;
@@ -162,7 +188,7 @@
         display: flex;
         flex-direction: row;
         margin-left: 60%;
-        margin-top: 23%;
+        margin-top: 27%;
     }
 
     #btn-pg-layout button{
@@ -176,6 +202,11 @@
         color: #8C0774;
         margin-left: 74%;
         margin-top: 15px;
+        cursor: pointer;
+    }
+
+    #menu-vend-layout{
+        margin-left: 5%;
     }
 
  

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/public/css/style.css">
     <title>AtrativaShore - Vendas</title>
 </head>
 <body>
@@ -13,32 +13,32 @@
         
         <div id="menu">
             <div class="itens-menu">
-                <span><img src="/Menu/icons/home.svg" alt=""></span>
-                <a href="">INICIO</a>
+                <span><img src="/public/css/icons/home.svg" alt=""></span>
+                <a href="/views/Menu/Menu.html">INICIO</a>
             </div>
 
             <div class="itens-menu">
-                <span><img src="/Menu/icons/caixa.svg" alt=""></span>
+                <span><img src="/public/css/icons/caixa.svg" alt=""></span>
                 <a href="">CAIXA</a>
             </div>
 
              <div class="itens-menu">
-                <span><img src="/Menu/icons/vendas.svg" alt=""></span>
-                <a href="">VENDAS</a>
+                <span><img src="/public/css/icons/vendas.svg" alt=""></span>
+                <a href="/views/Menu/Venda.html">VENDAS</a>
             </div>
 
              <div class="itens-menu">
-                <span><img src="/Menu/icons/produtos.svg" alt=""></span>
+                <span><img src="/public/css/icons/produtos.svg" alt=""></span>
                 <a href="">PRODUTOS</a>
             </div>
 
              <div class="itens-menu">
-                <span><img src="/Menu/icons/cliente.svg" alt=""></span>
+                <span><img src="/public/css/icons/cliente.svg" alt=""></span>
                 <a href="">CLIENTES</a>
             </div>
 
              <div class="itens-menu">
-                <span><img src="/Menu/icons/relatório.svg" alt=""></span>
+                <span><img src="/public/css/icons/relatório.svg" alt=""></span>
                 <a href="">RELATÓRIOS</a>
             </div>
 
@@ -49,15 +49,16 @@
     <div class="menu">
 
         <div id="menu-user">
-            <img src="icons/logo/logo.svg" alt="Logo">
+            <img src="/public/css/icons/logo/logo.svg" alt="Logo">
 
             <div id="user-login">
-                <a href="/Menu/Menu.html"> <img src="icons/Info-user/user.svg" alt="user"> </a>
+                <a href="/Menu/Menu.html"> <img src="/public/css/icons/Info-user/user.svg" alt="user"> </a>
             
                 <p>USUÁRIO</p>
             </div>
          </div>
 
+        <div id="menu-vend-layout"> 
          <div id="mensagem">
             <h1>VENDAS</h1>
          </div>
@@ -66,8 +67,8 @@
             <div id="venda-itens">
                 <input id="barra-procura" placeholder="    Procure Aqui..." type="text">
                 
-                <a href=""><img class="btn-efect" src="icons/botaoadd.svg" alt=""></a>
-                <a href=""><img class="btn-efect" src="icons/qrcode.svg" alt=""></a>
+                <a href=""><img class="btn-efect" src="/public/css/icons/botaoadd.svg" alt=""></a>
+                <a href=""><img class="btn-efect" src="/public/css/icons/qrcode.svg" alt=""></a>
 
                 <div id="inf-produtos">
                     <p>ESTOQUE</p>
@@ -87,8 +88,8 @@
                 </div>
 
                 <div id="btn-action">
-                    <a href=""><img class="btn-efect" src="icons/troca.svg" alt=""></a> <br>
-                    <a href=""><img class="btn-efect" src="icons/desconto.svg" alt=""></a>
+                    <a href=""><img class="btn-efect" src="/public/css/icons/troca.svg" alt=""></a> <br>
+                    <a href=""><img class="btn-efect" src="/public/css/icons/desconto.svg" alt=""></a>
 
                 </div>
             </div>
@@ -125,8 +126,10 @@
             </div>
 
             <div id="btn-pg-layout">
-                <button>FINALIZAR VENDA</button>
+                <button class="btn-efect" type="submit">FINALIZAR VENDA</button>
              </div>
+
+        </div>
 
             
          </div>
