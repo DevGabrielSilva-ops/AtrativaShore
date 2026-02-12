@@ -88,9 +88,8 @@
                 </div>
 
                 <div id="btn-action">
-                    <a href=""><img class="btn-efect" src="/public/css/icons/troca.svg" alt=""></a> <br>
-                    <a href=""><img class="btn-efect" src="/public/css/icons/desconto.svg" alt=""></a>
-
+                    <img id="abreTroca" class="btn-efect" src="/public/css/icons/troca.svg" alt=""> <br>
+                    <img id="abreDesconto" class="btn-efect" src="/public/css/icons/desconto.svg" alt="">
                 </div>
             </div>
 
@@ -126,12 +125,136 @@
             </div>
 
             <div id="btn-pg-layout">
-                <button class="btn-efect" type="submit">FINALIZAR VENDA</button>
+                <button id="abrePagamento" class="btn-efect" type="submit">FINALIZAR VENDA</button>
              </div>
+
+             <div class="modal" id="Desconto-mod">
+                
+                <div id="Desconto-Layout">
+                    <span class="fecha" id="fechaDesconto">&times;</span>
+                    <div id="itens-desconto">
+                        <label for="Desconto"> <h2>TIPO</h2></label>
+                        <select name="Desconto" id="">
+                            <option>SELECIONE O DESCONTO</option>
+                            <option value="porcentagem">%PORCENTAGEM</option>
+                            <option value="exato">EXATO</option>
+                        </select>
+                    </div>
+                  
+                     <h2>Valor</h2>
+                    <input type="number">
+
+                    
+                        <button class="btnModSup" id="fechaDesconto" type="submit">FINALIZAR</button>
+                    
+                  
+                </div>
+                
+             </div>
+
+             <div class="modal" id="Troca">
+                
+                <div id="troca-layout">
+                    <span class="fecha" id="fechaTroca">&times;</span>
+                    <h1>TROCA</h1>
+
+                    <div id="troca-layout-2">
+                        
+                        <div id="top-layout">
+                            <input id="digite-produto" placeholder="      Procure Aqui..." type="text"> 
+                            <img src="/public/css/icons/botaoadd.svg" alt="ERROR">
+                        </div>
+
+                        <button class="btnModSup" id="fechaTroca">FINALIZAR</button>
+                    </div>
+                    
+                  
+                </div>
+                
+             </div>
+
+            <div class="modal" id="Pagamento">
+                
+                <div id="pagamento-layout">
+                    <span class="fecha" id="fechaPagamento">&times;</span>
+                    
+                    <h1>DEFINA FORMA DE PAGAMENTO</h1>
+
+                    <div id="pg-layout-2">
+                        
+                        <div id="valor">
+                            <h2>VALOR TOTAL:</h2>
+                            <h2 id="cifras">R$0,00</h2>
+                        </div>
+
+                        <div id="modos-pg-grid">
+                            <div id="itens-pg">
+                                <img src="/public/css/icons/metodo-pagamento/dinheiro.svg" alt="">
+                                <input type="text">
+                            </div>
+
+                             <div id="itens-pg">
+                                <img src="/public/css/icons/metodo-pagamento/cartão.svg" alt="">
+                                <input type="text">
+                            </div>
+
+                             <div id="itens-pg">
+                                <img src="/public/css/icons/metodo-pagamento/pix.svg" alt="">
+                                <input type="text">
+                            </div>
+
+                             <div id="itens-pg">
+                                <img src="/public/css/icons/metodo-pagamento/crediario.svg" alt="">
+                                <div id="crediario-layout">
+                                    <input type="text">
+                                    <img id="abreSelectClient" class="baixo" src="/public/css/icons/metodo-pagamento/crediario-acess.svg" alt="">
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div id="btn-action">
+
+                            <button>FINALIZAR PAGAMENTO</button>
+                        </div>
+
+                  
+
+                    </div>
+                    
+                    
+                  
+                </div>
+                
+             </div>
+
+             <div class="modal" id="SelectClient">
+                
+                <div id="selecao-cliente-layout">
+                    <span class="fecha" id="fechaSelectClient">&times;</span>
+                    <h1>SELECIONE O CLIENTE</h1>
+
+                    <div id="select-layout-interno">
+                        <div id="pesquisa-cliente">
+                            <input placeholder="   PROCURE AQUI..." type="text">
+                            <img src="/public/css/icons/Seleção CLiente/procura-cliente.svg" alt="">
+                        </div>
+
+                        <button>AVANÇAR</button>
+                    </div>
+
+                    
+                    
+                  
+                </div>
+                
+              </div>
 
         </div>
 
             
          </div>
+
+         <script src="script.js"></script>
 </body>
 </html>

@@ -209,4 +209,241 @@
         margin-left: 5%;
     }
 
- 
+    .modal{
+          display: none; /* começa escondido */
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.6);
+          justify-content: center;
+          align-items: center;
+          
+    }
+
+    .fecha{
+        cursor: pointer;
+    }
+
+    #Desconto-Layout{
+        width: 238px;
+        height: 165px;
+        display: flex;
+        flex-direction: column;
+        background-color: #FFFFFF;
+        border-radius: 15px;
+        padding: 10px;
+    }
+
+    #Desconto-Layout option,input{
+        width: 88px;
+        height: 38px;
+        border-radius: 10px;
+        background-color: #D9D9D9;
+        border-style: none;
+    }
+
+    #Desconto-Layout input{
+        text-align: center;
+        font-size: 20px;
+        font-weight: bold;
+    }
+
+    #Desconto-Layout select{
+        width: 90%;
+        height: 20px;
+        font-weight: bold;
+        color: #8C0774;
+        border-radius: 10px;
+        text-align: center;
+        background-color: #D9D9D9;
+        border-style: none;
+    }
+
+    .btnModSup{
+        background-color: #FFFFFF;
+        color: #8C0774;
+        font-weight: bold;
+        font-size: 20px;
+        margin-top: 10px;
+        margin-left: 15vh;
+        border-style: none;
+        cursor: pointer;
+    }
+
+    #itens-desconto{
+        display: flex;
+        flex-direction: column;
+    }
+
+    #troca-layout{
+        width: 440px;
+        height: 460px;
+        background-color: #FDCDFF;
+        border-radius: 15px;
+        padding: 15px;
+        
+    }
+
+    #troca-layout h1{
+        text-align: center;
+    }
+
+    #troca-layout-2{
+        width: 384px;
+        height: 353px;
+        border-radius: 15px;
+        background-color: #FFFFFF;
+        margin-left: 15px;
+        margin-top: 10px;
+    }
+
+    #top-layout img{
+        margin-left: 15px;
+    }
+
+    #top-layout input{
+        font-weight: bold;
+    }
+
+
+
+        #digite-produto{
+            width: 300px;
+            height: 32px;
+            margin-top: 10px;
+            margin-left: 10px;
+        }
+    
+    #troca-layout-2 button{
+        margin-top: 38vh;
+        margin-left: 37vh;
+    }
+
+    #pagamento-layout{
+        width: 643px;
+        height: 665px;
+        background-color: #FDCDFF;
+        border-radius: 15px;
+        padding: 15px;
+    }
+
+    #pagamento-layout h1{
+        text-align: center;
+    }
+
+    #pg-layout-2{
+        width: 548px;
+        height: 527px;
+        background-color: #FFFFFF;
+        border-radius: 15px;
+        margin-left: 30px;
+        margin-top: 20px;
+        padding: 10px;
+        
+    }
+
+    #valor{
+        display: flex;
+        justify-content: end;
+        margin-right: 20px;
+    }
+
+    #cifras{
+        color: rgb(34, 246, 10);
+    }
+
+    #modos-pg-grid{
+        display: grid;
+        grid-template-columns: repeat(2,1fr);
+        grid-template-rows:repeat(2,1fr);
+        margin-top: 60px;
+
+        gap: 40px;
+        margin-left: 10px;
+        
+        
+    }
+
+     #itens-pg input{
+        width: 173px;
+        height: 50px;
+     }
+     
+     #crediario-layout{
+        display: flex;
+        gap: 10px;
+     }
+
+     .baixo{
+        height: 50px;
+    
+     }
+
+     #btn-action button{
+        width:314px;
+        height:57px;
+        border-radius: 15px;
+        border-style: none;
+        font-weight: bold;
+        font-size: 25px;
+        color: #8C0774;
+
+        margin-top: 15vh;
+        margin-left: 38%;
+     }
+
+     #selecao-cliente-layout{
+        width: 643px;
+        height: 665px;
+        background-color: #FDCDFF;
+        padding: 15px;
+        border-radius: 15px;
+     }
+
+    #selecao-cliente-layout h1{
+        text-align: center;
+    }
+
+    #select-layout-interno{
+        width: 548px;
+        height: 515px;
+        background-color: #FFFFFF;
+        border-radius: 15px;
+        margin-left: 35px;
+        margin-top: 20px;
+    }
+
+    #pesquisa-cliente{
+        display: flex;
+        flex-direction: row;
+        gap: 30px;
+    }
+
+    #pesquisa-cliente img{
+        margin-top: 20px;
+    }
+
+    #pesquisa-cliente input{
+        width: 420px;
+        height: 42px;
+        margin-top: 15px;
+        margin-left: 10px;
+    }
+
+    #selecao-cliente-layout button{
+        width: 173px;
+        height: 42px;
+        border-style: none;
+        background-color: #FFFFFF;
+        font-size: 35px;
+        font-weight: bold;
+        color: #8C0774;
+        margin-top: 55vh;
+        margin-left: 48vh;
+
+    }
+
+     #Pagamento { z-index: 10; }
+     #SelectCLient { z-index: 20; }
