@@ -1,0 +1,48 @@
+.menuInicial {
+  width: 100%;
+}
+
+.menuInicial h1 {
+  font-size: 32px;
+  color: #222;
+}
+
+.subtitle {
+  color: #777;
+  margin-top: 8px;
+  margin-bottom: 30px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  background: white;
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .06);
+  transition: .2s;
+  cursor: pointer;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+}
+
+.card svg {
+  color: #8c0774;
+}
+
+.card h3 {
+  margin-top: 15px;
+  color: #222;
+}
+
+.card p {
+  margin-top: 8px;
+  color: #777;
+  line-height: 1.5;
+}

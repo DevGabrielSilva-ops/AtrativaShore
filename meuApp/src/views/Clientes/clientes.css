@@ -1,0 +1,210 @@
+.clientes {
+  width: 100%;
+}
+
+.clientesHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.clientesHeader h1 {
+  font-size: 32px;
+  color: #222;
+}
+
+.clientesHeader p {
+  color: #777;
+  margin-top: 6px;
+}
+
+.adicionarClienteButton {
+  border: none;
+  background: #8c0774;
+  color: white;
+  padding: 14px 18px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.pesquisaCliente {
+  background: white;
+  padding: 0 16px;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #8c0774;
+  margin-bottom: 22px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
+}
+
+.pesquisaCliente input {
+  border: none;
+  outline: none;
+  width: 100%;
+  font-size: 15px;
+}
+
+.clientesCard {
+  background: white;
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
+  overflow-x: auto;
+}
+
+.clientesCard table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.clientesCard th {
+  color: #8c0774;
+  text-align: left;
+  font-size: 14px;
+}
+
+.clientesCard th,
+.clientesCard td {
+  padding: 14px;
+  border-bottom: 1px solid #eee;
+  white-space: nowrap;
+}
+
+.acoesClientes {
+  display: flex;
+  gap: 10px;
+}
+
+.alterarClienteButton,
+.excluirClienteButton {
+  border: none;
+  padding: 9px 12px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.alterarClienteButton {
+  background: rgba(140, 7, 116, 0.1);
+  color: #8c0774;
+}
+
+.excluirClienteButton {
+  background: rgba(217, 48, 37, 0.1);
+  color: #d93025;
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(20, 20, 20, 0.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 20;
+}
+
+.modalCliente {
+  background: white;
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modalCliente.pequeno {
+  width: 420px;
+}
+
+.formularioCliente {
+  width: 820px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.modalHeader button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.formGridCliente {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.campoCliente {
+  display: flex;
+  flex-direction: column;
+}
+
+.campoCliente label {
+  margin-bottom: 8px;
+  color: #555;
+  font-size: 14px;
+}
+
+.campoCliente input {
+  padding: 13px;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  outline: none;
+  font-size: 15px;
+}
+
+.campoCliente input:focus {
+  border-color: #8c0774;
+}
+
+.campoCliente input[readonly] {
+  background: #f4f4f4;
+  color: #8c0774;
+  font-weight: bold;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.modalActions button {
+  border: none;
+  padding: 13px 17px;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modalActions .success {
+  background: #8c0774;
+  color: white;
+}
+
+.modalActions .danger {
+  background: #d93025;
+  color: white;
+}

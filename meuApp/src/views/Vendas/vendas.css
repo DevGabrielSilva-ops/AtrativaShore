@@ -1,0 +1,332 @@
+.vendas {
+  width: 100%;
+}
+
+.vendasHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.vendasHeader h1 {
+  font-size: 32px;
+  color: #222;
+}
+
+.vendasHeader p {
+  color: #777;
+  margin-top: 6px;
+}
+
+.trocaButton {
+  border: none;
+  background: #fff;
+  color: #8c0774;
+  padding: 14px 18px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
+}
+
+.buscaProduto {
+  background: white;
+  padding: 18px;
+  border-radius: 18px;
+  display: flex;
+  gap: 14px;
+  margin-bottom: 18px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
+}
+
+.inputArea {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f7f7fb;
+  border-radius: 14px;
+  padding: 0 14px;
+  color: #8c0774;
+}
+
+.inputArea input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 16px;
+  outline: none;
+  font-size: 15px;
+}
+
+.buscaProduto button {
+  border: none;
+  background: #8c0774;
+  color: white;
+  padding: 0 22px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.resultadoBusca {
+  background: white;
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.05);
+}
+
+.resultadoBusca button {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 14px;
+  display: flex;
+  justify-content: space-between;
+  cursor: pointer;
+  border-radius: 10px;
+}
+
+.resultadoBusca button:hover {
+  background: rgba(140, 7, 116, 0.08);
+}
+
+.vendaConteudo {
+  display: grid;
+  grid-template-columns: 1fr 330px;
+  gap: 24px;
+}
+
+.listaProdutos,
+.resumoVenda {
+  background: white;
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
+}
+
+.listaProdutos h2,
+.resumoVenda h2 {
+  margin-bottom: 18px;
+  color: #222;
+}
+
+.vendaVazia {
+  padding: 40px;
+  text-align: center;
+  color: #777;
+  background: #f7f7fb;
+  border-radius: 14px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  color: #8c0774;
+  text-align: left;
+  font-size: 14px;
+}
+
+th,
+td {
+  padding: 14px;
+  border-bottom: 1px solid #eee;
+}
+
+.quantidade {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.quantidade button {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(140, 7, 116, 0.1);
+  color: #8c0774;
+  cursor: pointer;
+}
+
+.removeButton {
+  border: none;
+  background: rgba(217, 48, 37, 0.1);
+  color: #d93025;
+  padding: 9px 12px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.resumoVenda label {
+  display: block;
+  margin-bottom: 8px;
+  color: #555;
+}
+
+.resumoVenda input {
+  width: 100%;
+  padding: 13px;
+  border-radius: 12px;
+  border: 1px solid #ddd;
+  margin-bottom: 16px;
+}
+
+.linhaResumo {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  color: #555;
+}
+
+.totalVenda {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding: 18px 0;
+  border-top: 1px solid #eee;
+  font-size: 20px;
+  color: #8c0774;
+}
+
+.concluirButton {
+  width: 100%;
+  border: none;
+  background: #8c0774;
+  color: white;
+  padding: 15px;
+  border-radius: 14px;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.concluirButton:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(20, 20, 20, 0.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+
+.modal {
+  background: white;
+  width: 420px;
+  padding: 28px;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal h2 {
+  margin-bottom: 18px;
+}
+
+.modal p {
+  margin-bottom: 16px;
+}
+
+.modal label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.modal input {
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #ddd;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.modalActions button {
+  border: none;
+  padding: 13px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modalActions .danger {
+  background: #d93025;
+  color: white;
+}
+
+.modalActions .success {
+  background: #8c0774;
+  color: white;
+}
+
+.pagamentoModal {
+  width: 560px;
+}
+
+.valorFinal {
+  background: #f7f7fb;
+  padding: 18px;
+  border-radius: 14px;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  color: #8c0774;
+  font-size: 20px;
+}
+
+.pagamentos {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.pagamentos button {
+  border: 1px solid #ddd;
+  background: #fff;
+  padding: 20px;
+  border-radius: 16px;
+  cursor: pointer;
+  color: #555;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+
+.pagamentos button.selected {
+  border-color: #8c0774;
+  background: rgba(140, 7, 116, 0.1);
+  color: #8c0774;
+  font-weight: bold;
+}

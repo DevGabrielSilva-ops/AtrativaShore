@@ -1,0 +1,224 @@
+.produtos {
+  width: 100%;
+}
+
+.produtosHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.produtosHeader h1 {
+  font-size: 32px;
+  color: #222;
+}
+
+.produtosHeader p {
+  color: #777;
+  margin-top: 6px;
+}
+
+.novoProdutoButton {
+  border: none;
+  background: #8c0774;
+  color: white;
+  padding: 14px 18px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.produtosCard {
+  background: white;
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
+  overflow-x: auto;
+}
+
+.produtosCard table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.produtosCard th {
+  color: #8c0774;
+  text-align: left;
+  font-size: 14px;
+}
+
+.produtosCard th,
+.produtosCard td {
+  padding: 14px;
+  border-bottom: 1px solid #eee;
+  white-space: nowrap;
+}
+
+.acoesProdutos {
+  display: flex;
+  gap: 10px;
+}
+
+.alterarButton,
+.excluirButton {
+  border: none;
+  padding: 9px 12px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.alterarButton {
+  background: rgba(140, 7, 116, 0.1);
+  color: #8c0774;
+}
+
+.excluirButton {
+  background: rgba(217, 48, 37, 0.1);
+  color: #d93025;
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(20, 20, 20, 0.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 20;
+}
+
+.modalProduto {
+  background: white;
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modalProduto.pequeno {
+  width: 420px;
+}
+
+.modalProduto.formulario {
+  width: 760px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modalProduto h2 {
+  color: #222;
+}
+
+.modalProduto p {
+  margin-top: 18px;
+  color: #555;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.modalHeader button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #555;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+}
+
+.campo.full {
+  grid-column: span 2;
+}
+
+.campo label {
+  margin-bottom: 8px;
+  color: #555;
+  font-size: 14px;
+}
+
+.campo input,
+.campo select {
+  padding: 13px;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  outline: none;
+  font-size: 15px;
+}
+
+.campo input:focus,
+.campo select:focus {
+  border-color: #8c0774;
+}
+
+.campo input[readonly] {
+  background: #f4f4f4;
+  color: #8c0774;
+  font-weight: bold;
+}
+
+.codigoInput {
+  display: flex;
+  gap: 10px;
+}
+
+.codigoInput input {
+  flex: 1;
+}
+
+.codigoInput button {
+  border: none;
+  background: #8c0774;
+  color: white;
+  border-radius: 12px;
+  padding: 0 14px;
+  cursor: pointer;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.modalActions button {
+  border: none;
+  padding: 13px 17px;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modalActions .danger {
+  background: #d93025;
+  color: white;
+}
+
+.modalActions .success {
+  background: #8c0774;
+  color: white;
+}
