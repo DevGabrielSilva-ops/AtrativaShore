@@ -6,13 +6,18 @@ import {
   IoCube,
   IoPeople,
   IoBarChart,
-  IoHelpCircle,
   IoLogOut,
 } from "react-icons/io5";
-
+import { useNavigate } from "react-router-dom";
 import "./Layout.css";
 
 function Layout() {
+  const navigate = useNavigate()
+
+  const clickSair = () => {
+    navigate('/')
+  }
+
   return (
     <div className="layout">
       <aside className="sidebar">
@@ -21,7 +26,7 @@ function Layout() {
         </div>
 
         <nav className="menu">
-          <NavLink to="/" end className={({ isActive }) => isActive ? "menuItem active" : "menuItem"}>
+          <NavLink to="/menu" end className={({ isActive }) => isActive ? "menuItem active" : "menuItem"}>
             <IoHome size={24} />
             <span>Menu Inicial</span>
           </NavLink>
@@ -50,14 +55,9 @@ function Layout() {
             <IoBarChart size={24} />
             <span>Relatórios</span>
           </NavLink>
-
-          <NavLink to="/suporte" className={({ isActive }) => isActive ? "menuItem active" : "menuItem"}>
-            <IoHelpCircle size={24} />
-            <span>Suporte</span>
-          </NavLink>
         </nav>
 
-        <button className="logout">
+        <button onClick={clickSair} className="logout">
           <IoLogOut size={24} />
           <span>Sair</span>
         </button>

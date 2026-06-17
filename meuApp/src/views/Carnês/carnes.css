@@ -1,0 +1,372 @@
+.carnes {
+  width: 100%;
+}
+
+.carnesHeader {
+  margin-bottom: 24px;
+}
+
+.carnesHeader h1 {
+  font-size: 32px;
+  color: #222;
+}
+
+.carnesHeader p {
+  color: #777;
+  margin-top: 6px;
+}
+
+.clientesCarnes,
+.carnesAbertos,
+.detalhesCarne {
+  background: white;
+  padding: 24px;
+  border-radius: 18px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
+}
+
+.clientesCarnes h2,
+.carnesAbertos h2,
+.detalhesCarne h2 {
+  color: #222;
+}
+
+.pesquisaCarnes {
+  height: 56px;
+  background: #f7f7fb;
+  border: 1px solid #e5e5e5;
+  border-radius: 14px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #8c0774;
+  margin: 20px 0;
+}
+
+.pesquisaCarnes input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+}
+
+.listaClientesCarnes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 16px;
+}
+
+.listaClientesCarnes button {
+  border: none;
+  background: #f7f7fb;
+  color: #8c0774;
+  padding: 20px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.listaClientesCarnes button:hover {
+  background: rgba(140, 7, 116, 0.1);
+}
+
+.sectionHeaderCarnes {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.sectionHeaderCarnes p {
+  color: #777;
+  margin-top: 5px;
+}
+
+.voltarButton,
+.fecharButton {
+  border: none;
+  padding: 12px 16px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.voltarButton {
+  background: rgba(140, 7, 116, 0.1);
+  color: #8c0774;
+}
+
+.fecharButton {
+  background: rgba(217, 48, 37, 0.1);
+  color: #d93025;
+}
+
+.resumoCliente {
+  background: #f7f7fb;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  color: #8c0774;
+  font-weight: bold;
+}
+
+.semCarnes {
+  padding: 40px;
+  text-align: center;
+  background: #f7f7fb;
+  color: #777;
+  border-radius: 14px;
+}
+
+.listaCarnes {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.listaCarnes button {
+  width: 100%;
+  border: none;
+  background: #f7f7fb;
+  padding: 18px;
+  border-radius: 16px;
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  color: #555;
+  text-align: left;
+}
+
+.listaCarnes button:hover {
+  background: rgba(140, 7, 116, 0.08);
+}
+
+.listaCarnes svg {
+  color: #8c0774;
+}
+
+.listaCarnes div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.listaCarnes strong {
+  color: #8c0774;
+}
+
+.listaCarnes span {
+  color: #777;
+  font-size: 14px;
+}
+
+.detalhesGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+.campoCarne {
+  display: flex;
+  flex-direction: column;
+}
+
+.campoCarne label {
+  margin-bottom: 8px;
+  color: #555;
+  font-size: 14px;
+}
+
+.campoCarne input {
+  padding: 13px;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  outline: none;
+  font-size: 15px;
+}
+
+.campoCarne input:focus {
+  border-color: #8c0774;
+}
+
+.campoCarne input[readonly] {
+  background: #f4f4f4;
+  color: #8c0774;
+  font-weight: bold;
+}
+
+.totalParcela {
+  background: #f7f7fb;
+  padding: 16px;
+  border-radius: 14px;
+}
+
+.totalParcela strong {
+  color: #8c0774;
+  font-size: 22px;
+}
+
+.acoesCarne {
+  margin-top: 26px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.acoesCarne button {
+  border: none;
+  padding: 13px 17px;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.confirmarPagamentoButton {
+  background: #8c0774;
+  color: white;
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(20, 20, 20, 0.45);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 30;
+}
+
+.modalCarne {
+  background: white;
+  width: 460px;
+  max-width: 92%;
+  padding: 28px;
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modalCarne h2 {
+  margin-bottom: 20px;
+  color: #222;
+}
+
+.resumoPagamentoModal {
+  background: #f7f7fb;
+  padding: 16px;
+  border-radius: 14px;
+  margin-bottom: 16px;
+}
+
+.resumoPagamentoModal p {
+  margin-bottom: 8px;
+  color: #555;
+}
+
+.valorPagamento {
+  background: #f7f7fb;
+  padding: 18px;
+  border-radius: 14px;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.valorPagamento strong {
+  color: #8c0774;
+  font-size: 20px;
+}
+
+.formasPagamentoCarne {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.formasPagamentoCarne button {
+  border: 1px solid #ddd;
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  cursor: pointer;
+  color: #555;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+
+.formasPagamentoCarne button.selected {
+  border-color: #8c0774;
+  background: rgba(140, 7, 116, 0.1);
+  color: #8c0774;
+  font-weight: bold;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.modalActions button {
+  border: none;
+  padding: 13px 17px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.modalActions .success {
+  background: #8c0774;
+  color: white;
+}
+
+.modalCarne.visualizar p {
+  margin-bottom: 10px;
+  color: #555;
+}
+
+@media (max-width: 768px) {
+  .sectionHeaderCarnes,
+  .resumoCliente,
+  .acoesCarne,
+  .valorPagamento {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .detalhesGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .listaCarnes button {
+    grid-template-columns: 36px 1fr;
+  }
+
+  .listaCarnes button > strong {
+    grid-column: 2;
+  }
+
+  .formasPagamentoCarne {
+    grid-template-columns: 1fr;
+  }
+}

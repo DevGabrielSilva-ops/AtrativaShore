@@ -4,6 +4,7 @@ import {
   IoCube,
   IoPeople,
   IoBarChart,
+  IoReceipt
 } from "react-icons/io5";
 
 import '../MenuInicial/menu.css'
@@ -29,6 +30,13 @@ function MenuInicial() {
     const clickClientes = () => {
         navigate('/clientes')
     } 
+    const clickCarne = () => {
+        navigate('/carnês')
+    } 
+
+    const clickEstoque = () => {
+        navigate('/estoque')
+    }
   return (
     
     <div>
@@ -64,6 +72,18 @@ function MenuInicial() {
           <IoBarChart size={34} />
           <h3>Relatórios</h3>
           <p>Acompanhar vendas, caixa e desempenho.</p>
+        </div>
+
+        <div onClick={clickCarne} className="card" >
+          <IoReceipt size={34} />
+          <h3>Carnês</h3>
+          <p>Verificar Carnês em aberto, vencidos ou próximos.</p>
+        </div>
+
+        <div onClick={clickEstoque} className="card" >
+          <IoReceipt size={34} />
+          <h3>Estoque</h3>
+          <p>Gerenciar Mercadorias cadastradas, adicionar e remover.</p>
         </div>
       </div>
     </div>

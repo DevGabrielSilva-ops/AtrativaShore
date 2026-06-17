@@ -19,7 +19,6 @@ interface Produto {
   valorVista: number;
   lucroBruto: number;
   codigoBarras: string;
-  estoque: number;
   estoqueMinimo: number;
 }
 
@@ -35,7 +34,6 @@ const produtosIniciais: Produto[] = [
     valorVista: 39.9,
     lucroBruto: 99.5,
     codigoBarras: "789100000001",
-    estoque: 15,
     estoqueMinimo: 5,
   },
   {
@@ -47,7 +45,6 @@ const produtosIniciais: Produto[] = [
     valorVista: 89.9,
     lucroBruto: 99.78,
     codigoBarras: "789100000002",
-    estoque: 8,
     estoqueMinimo: 3,
   },
 ];
@@ -61,7 +58,6 @@ const produtoVazio: Produto = {
   valorVista: 0,
   lucroBruto: 0,
   codigoBarras: "",
-  estoque: 0,
   estoqueMinimo: 0,
 };
 
@@ -201,7 +197,7 @@ function Produtos() {
                 <td>{formatarMoeda(produto.valorVista)}</td>
                 <td>{formatarMoeda(produto.valorPrazo)}</td>
                 <td>
-                  {produto.estoque} / mín. {produto.estoqueMinimo}
+                    mín. {produto.estoqueMinimo}
                 </td>
                 <td>
                   <div className="acoesProdutos">
@@ -348,17 +344,6 @@ function Produtos() {
                     <IoBarcodeOutline size={20} />
                   </button>
                 </div>
-              </div>
-
-              <div className="campo">
-                <label>Estoque Atual</label>
-                <input
-                  type="number"
-                  value={formProduto.estoque}
-                  onChange={(e) =>
-                    atualizarCampo("estoque", Number(e.target.value))
-                  }
-                />
               </div>
 
               <div className="campo">
