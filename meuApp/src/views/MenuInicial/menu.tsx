@@ -11,34 +11,34 @@ import '../MenuInicial/menu.css'
 import { useNavigate } from "react-router-dom";
 
 function MenuInicial() {
-    const navigate = useNavigate()
+  const navigate = useNavigate()
 
-    const clickCaixa = () => {
-        navigate('/caixa')
-    } 
+  const clickCaixa = () => {
+    navigate('/caixa')
+  }
 
-    const clickVendas = () => {
-        navigate('/vendas')
-    } 
+  const clickVendas = () => {
+    navigate('/vendas')
+  }
 
-    const clickProdutos = () => {
-        navigate('/produtos')
-    } 
-    const clickRelatorios = () => {
-        navigate('/relatorios')
-    } 
-    const clickClientes = () => {
-        navigate('/clientes')
-    } 
-    const clickCarne = () => {
-        navigate('/carnês')
-    } 
+  const clickProdutos = () => {
+    navigate('/produtos')
+  }
+  const clickRelatorios = () => {
+    navigate('/relatorios')
+  }
+  const clickClientes = () => {
+    navigate('/clientes')
+  }
+  const clickCarne = () => {
+    navigate('/carnês')
+  }
 
-    const clickEstoque = () => {
-        navigate('/estoque')
-    }
+  const clickEstoque = () => {
+    navigate('/estoque')
+  }
   return (
-    
+
     <div>
       <h1>Menu Inicial</h1>
       <p className="subtitle">Bem-vindo ao sistema Atrativa Shore</p>

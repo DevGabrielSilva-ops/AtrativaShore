@@ -9,7 +9,7 @@ import {
   IoSearch,
 } from "react-icons/io5";
 
-import "./Relatorios.css";
+import "./relatorios.css";
 
 type RelatorioAtivo =
   | "baixoEstoque"

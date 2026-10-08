@@ -8,7 +8,7 @@ import {
   IoBarcodeOutline,
 } from "react-icons/io5";
 
-import "./Produtos.css";
+import "./produtos.css";
 
 interface Produto {
   id: string;
@@ -197,7 +197,7 @@ function Produtos() {
                 <td>{formatarMoeda(produto.valorVista)}</td>
                 <td>{formatarMoeda(produto.valorPrazo)}</td>
                 <td>
-                    mín. {produto.estoqueMinimo}
+                  mín. {produto.estoqueMinimo}
                 </td>
                 <td>
                   <div className="acoesProdutos">

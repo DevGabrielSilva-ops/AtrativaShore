@@ -13,7 +13,7 @@ import {
   IoSwapHorizontal,
 } from "react-icons/io5";
 
-import "./Vendas.css";
+import "./vendas.css";
 
 interface Produto {
   id: string;
@@ -170,10 +170,10 @@ function Vendas() {
 
   const produtosFiltrados = busca
     ? produtosMock.filter(
-        (produto) =>
-          produto.nome.toLowerCase().includes(busca.toLowerCase()) ||
-          produto.codigoBarras.includes(busca)
-      )
+      (produto) =>
+        produto.nome.toLowerCase().includes(busca.toLowerCase()) ||
+        produto.codigoBarras.includes(busca)
+    )
     : [];
 
   return (

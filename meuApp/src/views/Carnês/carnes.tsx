@@ -11,7 +11,7 @@ import {
   IoSearch,
 } from "react-icons/io5";
 
-import "./Carnes.css";
+import "./carnes.css";
 
 interface Cliente {
   id: string;
@@ -171,7 +171,7 @@ function Carnes() {
             <input
               type="text"
               placeholder="Pesquisar cliente pelo nome..."
-              
+
               value={pesquisaCliente}
               onChange={(e) => setPesquisaCliente(e.target.value)}
             />

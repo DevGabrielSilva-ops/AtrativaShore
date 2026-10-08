@@ -8,7 +8,7 @@ import {
   IoCube,
 } from "react-icons/io5";
 
-import "./Estoque.css";
+import "./estoque.css";
 
 interface ProdutoBanco {
   id: string;
@@ -84,10 +84,10 @@ function Estoque() {
         lista.map((item) =>
           item.produtoId === produtoSelecionado.id
             ? {
-                ...item,
-                quantidadeAdicionar:
-                  item.quantidadeAdicionar + quantidadeAdicionar,
-              }
+              ...item,
+              quantidadeAdicionar:
+                item.quantidadeAdicionar + quantidadeAdicionar,
+            }
             : item
         )
       );
@@ -134,10 +134,10 @@ function Estoque() {
         .map((produto) =>
           produto.id === itemId
             ? {
-                ...produto,
-                quantidadeAdicionar:
-                  produto.quantidadeAdicionar - quantidadeRemover,
-              }
+              ...produto,
+              quantidadeAdicionar:
+                produto.quantidadeAdicionar - quantidadeRemover,
+            }
             : produto
         )
         .filter((produto) => produto.quantidadeAdicionar > 0)
