@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import type { UsuarioAutenticado } from '../auth/usuario-autenticado.js';
+import { idLoginDe, type UsuarioAutenticado } from '../auth/usuario-autenticado.js';
 import { ConfiguracaoService } from '../config/configuracao.service.js';
 import { MODO_VENDA, STATUS_CAIXA } from '../common/constantes/legado.js';
 import { offset, paginado, type PaginacaoDto, type Paginado } from '../common/dto/paginacao.dto.js';
@@ -84,7 +84,7 @@ export class CaixaService {
       horaFechamento: null,
       valorAbertura: dto.valorAbertura,
       valorFechamento: null,
-      idLogin: usuario.id,
+      idLogin: idLoginDe(usuario),
       turno,
       terminal,
       status: STATUS_CAIXA.ABERTO,

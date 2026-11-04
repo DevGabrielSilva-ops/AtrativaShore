@@ -85,7 +85,21 @@ class BancoFalso {
   }
 }
 
-const usuario: UsuarioAutenticado = { id: 1, login: 'ATRATIVA', idPerfil: 1, perfil: 'ADMINISTRADOR', administrador: true };
+const usuario: UsuarioAutenticado = {
+  id: 10,
+  nome: 'Administrador',
+  email: null,
+  login: 'ATRATIVA',
+  papel: 'COMPANY_ADMIN',
+  idCargo: null,
+  cargo: null,
+  permissoes: [],
+  idEmpresa: 1,
+  empresa: { id: 1, nome: 'Loja', status: 'ACTIVE', banco: 'Atrativa' },
+  idLogin: 1,
+  trocarSenha: false,
+  administrador: true,
+};
 
 function montar(banco: BancoFalso, transacoesOk = true) {
   const config = {

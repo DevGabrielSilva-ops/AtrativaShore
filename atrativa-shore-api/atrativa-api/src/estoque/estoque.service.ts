@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource, type EntityManager, In } from 'typeorm';
-import type { UsuarioAutenticado } from '../auth/usuario-autenticado.js';
+import { idLoginDe, type UsuarioAutenticado } from '../auth/usuario-autenticado.js';
 import { ConfiguracaoService } from '../config/configuracao.service.js';
 import {
   MODO_ESTOQUE,
@@ -138,7 +138,7 @@ export class EstoqueService {
           tipo: TIPO_FINANCEIRO.SAIDA,
           parcela: 1,
           valorPago: valor,
-          idCliente: usuario.id,
+          idCliente: idLoginDe(usuario),
           historico: `Compra de mercadoria, nota: ${numeroNota} Fornecedor: ${nomeFornecedor ?? ''} Total de parcelas: 1`.slice(0, 200),
           idPlano: PLANO_CONTAS.COMPRA_MERCADORIA,
           valorParcela: valor,

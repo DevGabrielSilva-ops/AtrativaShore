@@ -1,15 +1,15 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfiguracaoService } from '../../config/configuracao.service.js';
-import { UsuariosService } from '../../usuarios/usuarios.service.js';
+import { SessaoUsuarioService } from '../sessao-usuario.service.js';
 import type { PayloadJwt, UsuarioAutenticado } from '../usuario-autenticado.js';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     config: ConfiguracaoService,
-    private readonly usuarios: UsuariosService,
+    private readonly sessoes: SessaoUsuarioService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -18,9 +18,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: PayloadJwt): Promise<UsuarioAutenticado> {
-    const usuario = await this.usuarios.buscarPorId(payload.sub);
-    if (!usuario) throw new UnauthorizedException('Usuário não existe mais');
-    return this.usuarios.montarAutenticado(usuario);
+  validate(payload: PayloadJwt): Promise<UsuarioAutenticado> {
+    return this.sessoes.porToken(payload.sub, payload.ver);
   }
 }

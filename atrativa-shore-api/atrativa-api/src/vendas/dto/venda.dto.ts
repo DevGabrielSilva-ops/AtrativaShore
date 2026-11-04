@@ -124,6 +124,13 @@ export class ListarVendasDto extends PeriodoPaginadoDto {
   @Min(0)
   idCliente?: number;
 
+  @ApiPropertyOptional({ description: 'Vendedor (id do login da empresa); só para quem vê as vendas de todos' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  idVendedor?: number;
+
   @ApiPropertyOptional({ enum: FormaPagamento })
   @IsOptional()
   @IsEnum(FormaPagamento)

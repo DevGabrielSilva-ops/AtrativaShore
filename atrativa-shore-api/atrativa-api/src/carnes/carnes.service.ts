@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
-import type { UsuarioAutenticado } from '../auth/usuario-autenticado.js';
+import { idLoginDe, type UsuarioAutenticado } from '../auth/usuario-autenticado.js';
 import { buscarCaixaAberto } from '../caixa/consultas-caixa.js';
 import { ConfiguracaoService } from '../config/configuracao.service.js';
 import {
@@ -172,7 +172,7 @@ export class CarnesService {
       await manager.insert(VendaItem, {
         controle: controleRecebimento,
         dataVenda: hoje,
-        idLogin: usuario.id,
+        idLogin: idLoginDe(usuario),
         idProduto: await this.produtoRecebimento(manager),
         valorUnitario: paraReais(total),
         quantidade: 1,

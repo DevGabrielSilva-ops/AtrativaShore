@@ -16,6 +16,7 @@ async function iniciar(): Promise<void> {
     origin: valores.origensCors,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
   });
   app.useGlobalPipes(
     new ValidationPipe({
@@ -33,8 +34,9 @@ async function iniciar(): Promise<void> {
       new DocumentBuilder()
         .setTitle('Atrativa Shore API')
         .setDescription(
-          'API REST do Atrativa Shore sobre o banco MySQL legado da loja. ' +
+          'API REST da plataforma Atrativa Shore (multiempresa). ' +
             'Autentique em POST /auth/login e use o token no botão "Authorize". ' +
+            'Rotas /plataforma são exclusivas do superadministrador; as demais usam a empresa do usuário autenticado. ' +
             'Respostas de sucesso vêm em { data } (listas: { data, meta }); erros em { statusCode, error, message, path, timestamp }.',
         )
         .setVersion('1.0.0')

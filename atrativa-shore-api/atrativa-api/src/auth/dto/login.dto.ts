@@ -1,13 +1,13 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { Aparar } from '../../common/dto/transformacoes.js';
 
 export class LoginDto {
-  @ApiProperty({ example: 'ATRATIVA', description: 'Login do usuário (cad_login.login)' })
+  @ApiProperty({ example: 'maria@loja.com', description: 'E-mail ou usuário de acesso' })
   @Aparar()
   @IsString()
   @IsNotEmpty()
-  @MaxLength(15)
+  @MaxLength(200)
   login: string;
 
   @ApiProperty({ example: '******', format: 'password' })
@@ -15,6 +15,11 @@ export class LoginDto {
   @IsNotEmpty()
   @MaxLength(72)
   senha: string;
+
+  @ApiPropertyOptional({ default: false, description: 'Mantém a sessão por mais tempo neste navegador' })
+  @IsOptional()
+  @IsBoolean()
+  lembrar?: boolean;
 }
 
 export class AlterarSenhaDto {
@@ -24,9 +29,9 @@ export class AlterarSenhaDto {
   @MaxLength(72)
   senhaAtual: string;
 
-  @ApiProperty({ format: 'password', minLength: 6, maxLength: 72 })
+  @ApiProperty({ format: 'password', minLength: 8, maxLength: 72 })
   @IsString()
-  @MinLength(6)
+  @MinLength(8)
   @MaxLength(72)
   novaSenha: string;
 }

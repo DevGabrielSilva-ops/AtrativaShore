@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { DataSource, type EntityManager, In, QueryFailedError } from 'typeorm';
-import type { UsuarioAutenticado } from '../auth/usuario-autenticado.js';
+import { idLoginDe, type UsuarioAutenticado } from '../auth/usuario-autenticado.js';
 import { buscarCaixaAberto } from '../caixa/consultas-caixa.js';
 import { consultarCreditoCarne, garantirLimiteCarne } from '../carnes/limite-carne.js';
 import { ConfiguracaoService } from '../config/configuracao.service.js';
@@ -190,7 +190,7 @@ export class VendasService {
       controle,
       dataVenda: hoje,
       idCliente,
-      idLogin: usuario.id,
+      idLogin: idLoginDe(usuario),
       valorTotal: paraReais(calculo.liquido),
       valorDesconto: paraReais(calculo.desconto),
       parcelas: parcelasCarne.length + (aVistaCaixa > 0 ? 1 : 0),
@@ -207,7 +207,7 @@ export class VendasService {
       idCartao: 0,
     });
 
-    const base = { controle, dataVenda: hoje, idLogin: usuario.id, idCliente, estornado: 0, terminal, turno, idGrade: 0 };
+    const base = { controle, dataVenda: hoje, idLogin: idLoginDe(usuario), idCliente, estornado: 0, terminal, turno, idGrade: 0 };
     await manager.insert(VendaItem, [
       ...calculo.itens.map((item) => ({
         ...base,
@@ -252,7 +252,7 @@ export class VendasService {
       await creditarSaldo(manager, produto.id, troca.quantidade);
     }
 
-    const historicoVenda = `CONTROLE: ${controle} VENDEDOR: ${usuario.login} TERMINAL: ${terminal} TURNO: ${turno}`;
+    const historicoVenda = `CONTROLE: ${controle} VENDEDOR: ${usuario.login ?? usuario.nome} TERMINAL: ${terminal} TURNO: ${turno}`;
     const lancamentos: Array<Partial<Financeiro>> = [];
     if (aVistaCaixa > 0) {
       lancamentos.push({
@@ -468,7 +468,7 @@ export class VendasService {
     return this.obterPorControle(controle);
   }
 
-  async listar(filtro: ListarVendasDto): Promise<Paginado<VendaResumo>> {
+  async listar(filtro: ListarVendasDto, idVendedor?: number): Promise<Paginado<VendaResumo>> {
     const condicoes = ['v.controle IS NOT NULL'];
     const parametros: unknown[] = [];
     if (!filtro.incluirEstornadas) condicoes.push('v.estornado = 0');
@@ -483,6 +483,10 @@ export class VendasService {
     if (filtro.idCliente !== undefined) {
       condicoes.push('v.id_cliente = ?');
       parametros.push(filtro.idCliente);
+    }
+    if (idVendedor !== undefined) {
+      condicoes.push('v.id_login = ?');
+      parametros.push(idVendedor);
     }
     if (filtro.formaPagamento) condicoes.push(`v.${COLUNA_FORMA[filtro.formaPagamento]} > 0`);
     const where = `WHERE ${condicoes.join(' AND ')}`;
@@ -500,15 +504,19 @@ export class VendasService {
     return paginado(linhas.map(mapearVenda), Number(total), filtro.page, filtro.limit);
   }
 
-  async obter(id: number): Promise<VendaDetalhe> {
+  async obter(id: number, idVendedor?: number): Promise<VendaDetalhe> {
     const [linha] = (await this.fonte.query(`${SELECT_VENDA} WHERE v.id = ?`, [id])) as LinhaVenda[];
-    if (!linha || !linha.controle) throw new NotFoundException(`Venda #${id} não encontrada`);
+    if (!linha || !linha.controle || (idVendedor !== undefined && Number(linha.id_login) !== idVendedor)) {
+      throw new NotFoundException(`Venda #${id} não encontrada`);
+    }
     return this.detalhar(linha);
   }
 
-  async obterPorControle(controle: string): Promise<VendaDetalhe> {
+  async obterPorControle(controle: string, idVendedor?: number): Promise<VendaDetalhe> {
     const [linha] = (await this.fonte.query(`${SELECT_VENDA} WHERE v.controle = ?`, [controle])) as LinhaVenda[];
-    if (!linha) throw new NotFoundException(`Venda ${controle} não encontrada`);
+    if (!linha || (idVendedor !== undefined && Number(linha.id_login) !== idVendedor)) {
+      throw new NotFoundException(`Venda ${controle} não encontrada`);
+    }
     return this.detalhar(linha);
   }
 
