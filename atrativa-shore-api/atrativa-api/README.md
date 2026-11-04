@@ -86,12 +86,22 @@ docker exec atrativa-mysql sh -c "mysql -uroot -proot --default-character-set=la
 
 > ⚠️ O dump contém `DROP TABLE IF EXISTS`. Importe apenas em banco vazio ou de teste, **nunca por cima do banco que a loja está usando**.
 
-### 2.2. Migrations (uma vez, após backup)
+### 2.2. Plataforma multiempresa (uma vez)
+
+Cada empresa tem um banco com a estrutura do sistema anterior; um banco central guarda empresas, usuários, códigos de ativação e auditoria. Detalhes em `../../docs/SAAS_DATABASE_ARCHITECTURE.md`.
 
 ```bash
-npm run migration:show     # o que falta aplicar
-npm run migration:run      # aplica (ver seção 4)
+npm run plataforma:migrar                       # cria o banco central (DB_PLATAFORMA) e as tabelas plataforma_*
+npm run plataforma:superadmin                   # cria o dono da plataforma com SUPERADMIN_EMAIL e SUPERADMIN_SENHA do .env
+npm run plataforma:importar -- Atrativa         # registra o banco do sistema anterior como empresa e importa os usuários
+npm run empresas:migrar                         # aplica as migrations da API no banco de todas as empresas
 ```
+
+- O usuário MySQL da API precisa de permissão para **criar bancos**: cada empresa ativada por código ganha o seu (`DB_EMPRESA_PREFIXO` + id).
+- `plataforma:importar` não altera os dados do banco importado; só aplica as migrations da API nele (InnoDB, `vr_pix`, `limite_carne`). Faça backup antes.
+- Usuários importados com perfil ADMINISTRADOR viram administradores da empresa; os demais, vendedores. A senha do sistema anterior vale no primeiro acesso e é convertida em hash.
+- Para importar outro banco antigo depois: carregue o dump num banco novo e rode `npm run plataforma:importar -- <nome-do-banco>`.
+- Para trocar a senha do superadministrador: `npm run plataforma:superadmin -- --redefinir-senha`.
 
 ### 2.3. Iniciar
 
@@ -102,7 +112,7 @@ npm run build && npm run start:prod
 
 - API: `http://localhost:3000/api/v1`
 - Swagger: `http://localhost:3000/api/v1/docs`
-- Saúde: `GET /api/v1/health` (mostra se as migrations foram aplicadas)
+- Saúde: `GET /api/v1/health` (banco central) e `GET /api/v1/empresa/estado-banco` (banco da empresa do usuário)
 
 Na inicialização a API **avisa no log** se alguma tabela ainda está em MyISAM ou se falta alguma migration.
 
@@ -161,14 +171,15 @@ Enquanto as tabelas estiverem em MyISAM, **vendas, estornos, entradas e ajustes 
 
 ---
 
-## 5. Autenticação
+## 5. Autenticação e acesso
 
-- `POST /api/v1/auth/login` com `{ "login": "ATRATIVA", "senha": "..." }` devolve `accessToken` (JWT) e os dados do usuário.
-- Envie em toda requisição: `Authorization: Bearer <accessToken>`.
-- Todas as rotas exigem token, exceto `POST /auth/login` e `GET /health`.
-- **Senha:** o banco legado guarda a senha em texto puro (`cad_login.senha`). A API não altera essa coluna (o desktop continua funcionando). No **primeiro login** de cada usuário, ela confere a senha do desktop e grava um **hash bcrypt** em `api_credencial`; daí em diante só o hash é usado. `PATCH /auth/senha` troca a senha da API (não a do desktop).
-- A senha nunca é retornada; login inválido e usuário inexistente recebem a mesma mensagem.
-- **Perfis:** o perfil vem de `cad_login_perfil`. Rotas sensíveis exigem o perfil **ADMINISTRADOR**: estorno de venda, ajuste manual de estoque, edição da empresa e listagem de usuários. (O campo `menu_options` do legado não tem mapa de significado, então não é usado.)
+- `POST /auth/login` com `{ "login": "<e-mail ou usuário>", "senha": "...", "lembrar": false }` devolve um access token curto (15 min) e grava o refresh token num cookie httpOnly. `POST /auth/refresh` renova (com rotação e detecção de reuso) e `POST /auth/logout` encerra.
+- Papéis: **SUPER_ADMIN** (dono da plataforma, rotas `/plataforma`), **COMPANY_ADMIN**, **MANAGER**, **SELLER**, **STOCK_OPERATOR**. Cada rota comercial declara a permissão exigida (`@RequerPermissao`) e o guard confere no backend; cargos personalizados ajustam as permissões de um papel.
+- A empresa vem sempre do usuário autenticado; a requisição usa a conexão do banco dessa empresa. Usuário desativado ou empresa suspensa/vencida recebem 401/403 na hora.
+- Não existe cadastro público de superadministrador: o primeiro vem do comando `plataforma:superadmin` e os outros são criados por ele.
+- Empresas novas entram por **código de ativação** (`POST /ativacao/validar` e `/ativacao/concluir`), gerado em `POST /plataforma/codigos`. O código é mostrado uma vez e guardado só como hash.
+- Funcionários (`/funcionarios`, `/cargos`) recebem senha temporária e trocam no primeiro acesso.
+- Operações importantes ficam em `plataforma_auditoria` (`GET /auditoria` para a empresa, `GET /plataforma/auditoria` para a plataforma), sem senhas, tokens ou códigos.
 
 ---
 
@@ -415,24 +426,13 @@ Nome de produto e de fornecedor (UNIQUE no banco), código de barras do produto 
 ## 10. Testes
 
 ```bash
-npm test                                 # unitários (não precisam de banco)
-npm run test:e2e                         # inicialização da API + fluxo completo (este, só com banco de teste)
+npm test                 # unitários (não precisam de banco)
+npm run test:e2e         # inicialização da API com banco simulado + fluxo SaaS real (este, só com E2E_SAAS=true)
 ```
 
-- **Unitários (64 testes):** cálculo da venda (rateio, troca, pagamentos, limites), venda com banco simulado (baixa de estoque, estoque insuficiente sem gravar nada, rollback com concorrência, carnê, troca, cartão sem financeiro, bloqueio em MyISAM), autenticação (migração da senha legada, bcrypt, token), operações de saldo, relatórios, códigos e datas **conferidos contra registros reais do banco**.
-- **Inicialização (`test/inicializacao.e2e-spec.ts`):** sobe o `AppModule` real com banco simulado e confere guards (401), validação (400 em português), envelope de resposta e o documento Swagger.
-- **Fluxo completo (`test/api.e2e-spec.ts`):** contra um **MySQL de teste real**: cadastro, entrada, venda, estoque insuficiente (409 sem gravar), total errado (400), estorno, carnê, baixa e relatórios. Para rodar:
-
-```bash
-# banco separado com o dump e as migrations
-docker exec atrativa-mysql mysql -uroot -proot -e "CREATE DATABASE atrativa_teste; GRANT ALL ON atrativa_teste.* TO 'atrativa'@'%';"
-docker exec atrativa-mysql sh -c "mysql -uroot -proot --default-character-set=latin1 atrativa_teste < /tmp/bd.sql"
-DB_DATABASE=atrativa_teste npm run migration:run
-# no .env: E2E_DB_DATABASE=atrativa_teste e E2E_SENHA=<senha do usuário ATRATIVA>
-npm run test:e2e
-```
-
-O teste e2e **se recusa a rodar** se `E2E_DB_DATABASE` for igual a `DB_DATABASE`.
+- **Unitários:** cálculo e registro de venda, limite do carnê, operações de saldo, relatórios, códigos e datas; guard de acesso (plataforma × empresa, empresa suspensa, permissões, senha temporária), permissões por papel, códigos de ativação, remoção de segredos da auditoria e **isolamento do contexto por empresa com requisições concorrentes**.
+- **Inicialização (`test/inicializacao.e2e-spec.ts`):** sobe o `AppModule` real com banco simulado e confere 401/400, envelope de resposta e todas as rotas no Swagger.
+- **Fluxo SaaS (`test/api.e2e-spec.ts`):** com MySQL real, cria bancos temporários `e2e_*`, ativa duas empresas por código, confere que produtos, clientes e vendas não cruzam, que empresa não acessa `/plataforma`, permissões do vendedor, senha temporária, suspensão/reativação, rotação do refresh token e auditoria; no fim apaga os bancos `e2e_*` que criou. Para rodar, use um MySQL de teste e defina `E2E_SAAS=true` (e `E2E_DB_*` se for outro servidor).
 
 ---
 

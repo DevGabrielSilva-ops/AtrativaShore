@@ -18,19 +18,16 @@ npm run lint
 O `.env` está no `.gitignore`. Nada sensível vai no código: o token só existe em memória
 e na sessão do navegador.
 
-A API precisa liberar a origem do frontend em `CORS_ORIGINS` (ex.: `http://localhost:5173`).
+A API precisa liberar a origem do frontend em `CORS_ORIGINS` (ex.: `http://localhost:5173`). Com frontend e API em domínios diferentes, use HTTPS, `COOKIE_SECURE=true` e `COOKIE_SAMESITE=none`.
 
-## Autenticação
+## Autenticação e áreas
 
-1. `POST /auth/login` com `{ login, senha }` (o login é o usuário do sistema da loja, não e-mail).
-2. A resposta traz `accessToken`, `expiresAt` e `usuario` (perfil e se é administrador).
-3. A sessão fica em `sessionStorage`; com **Manter conectado**, em `localStorage` (chave `atrativa.sessao`).
-   Senha nunca é guardada.
-4. Ao abrir o app, `GET /auth/me` confirma o token. Passado `expiresAt` ou recebendo 401,
-   a sessão é encerrada e o login mostra "Sua sessão expirou".
-5. Rotas privadas redirecionam ao login e voltam para a página pedida depois.
-6. Ações restritas (estornar venda, ajuste de estoque, editar empresa) só aparecem para
-   `administrador: true`; a API valida de novo.
+1. `POST /auth/login` com `{ login, senha, lembrar }`; o login aceita e-mail ou usuário.
+2. O access token (15 min) fica só em memória. O refresh token vem num cookie httpOnly; ao abrir o app e quando o token vence, `POST /auth/refresh` renova a sessão sem pedir senha. As chamadas usam `credentials: "include"`.
+3. `POST /auth/logout` encerra a sessão no servidor.
+4. O papel decide a área: SUPER_ADMIN vai para `/plataforma`; os demais para a área da empresa. Usuário com senha temporária vai para `/trocar-senha`.
+5. O menu e os botões seguem as permissões do usuário (`usuario.permissoes`); o backend confere de novo em toda rota.
+6. Empresa nova entra por `/ativar` com o código de ativação.
 
 ## Camada de API (`src/services`)
 
@@ -56,8 +53,12 @@ A API precisa liberar a origem do frontend em `CORS_ORIGINS` (ex.: `http://local
 | Caixa | `GET /caixa/atual`, `POST /caixa/abrir`, `POST /caixa/fechar`, `GET /caixa/historico`, `GET /caixa/:id` |
 | Carnês | `GET /relatorios/clientes-debito`, `GET /clientes/:id/credito-carne`, `GET /carnes`, `GET /carnes/:codigo`, `POST /carnes/baixa` |
 | Relatórios | todos os `GET /relatorios/*` (vendas, faturamento, formas, mais vendidos, por cliente, débito, baixas, estoque baixo, mercadorias, movimentações) |
-| Meu perfil | `GET /auth/me`, `GET /empresa` |
-| Configurações | `PATCH /auth/senha`, `GET /health` |
+| Meu perfil | `GET /auth/me`, `GET /funcionarios/catalogo` |
+| Configurações | `PATCH /auth/senha`, `GET /empresa/estado-banco` |
+| Ativação | `POST /ativacao/validar`, `POST /ativacao/concluir` |
+| Funcionários | `GET/POST /funcionarios`, `PATCH /funcionarios/:id`, `POST /funcionarios/:id/status`, `POST /funcionarios/:id/senha-temporaria`, `GET /funcionarios/:id/atividades`, `GET/POST/PATCH/DELETE /cargos` |
+| Atividades | `GET /auditoria` |
+| Plataforma | `GET /plataforma/indicadores`, `/plataforma/empresas`, `/plataforma/codigos`, `/plataforma/planos`, `/plataforma/administradores`, `/plataforma/auditoria` e as ações de status, código e senha temporária |
 
 Os totais da venda exibidos no PDV são só prévia (mesmo arredondamento por item da API);
 o valor gravado é o que a API calcula e devolve, e é ele que aparece no comprovante.

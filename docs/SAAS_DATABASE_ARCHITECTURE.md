@@ -1,6 +1,6 @@
 # Atrativa Shore — Arquitetura SaaS multiempresa
 
-Status: **proposta para aprovação** (etapas 1 e 2). Nenhuma migration desta proposta foi criada ou executada.
+Status: **implementado** (etapas 1 a 9). Decisões aprovadas pelo proprietário: um banco por empresa, o usuário `ATRATIVA` vira administrador da empresa nº 1, criação automática do banco de cada empresa, e a estrutura legada é mantida para importar o banco do sistema anterior depois.
 
 ---
 
@@ -146,7 +146,7 @@ Relacionamentos: empresa 1—N usuários; empresa 1—N cargos; plano 1—N empr
 
 ### 3.6 Códigos de ativação
 
-- 128 bits aleatórios (`crypto.randomBytes`), exibidos **uma única vez** no formato `ATV-XXXX-XXXX-XXXX-XXXX`; no banco fica só o SHA-256 e o prefixo.
+- 25 caracteres aleatórios de um alfabeto de 32 símbolos (125 bits, `crypto.randomInt`), exibidos **uma única vez** no formato `ATV-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX`; no banco ficam só o SHA-256 e o prefixo. Letras ambíguas digitadas (O, I, L) são aceitas como 0 e 1.
 - Validade, revogação, limite de usos e registro de cada uso; expirado, revogado ou esgotado é recusado com mensagem específica.
 - **NOVA_EMPRESA:** cria empresa (PENDING → ACTIVE), banco da empresa e o COMPANY_ADMIN numa única operação; se algo falhar, nada fica pela metade.
 - **EMPRESA_EXISTENTE:** vinculado a uma empresa já cadastrada e, opcionalmente, ao e-mail do responsável; só cria o administrador dessa empresa. Não permite trocar de empresa nem assumir uma empresa com administrador já ativo, exceto se o código for explicitamente de "novo responsável".
@@ -186,9 +186,37 @@ Rollback: apagar o banco central volta a API ao estado anterior; os bancos das e
 | 8. Superadmin | Empresas, status, planos, códigos, admins da plataforma, auditoria, indicadores | e2e: admin de empresa recebe 403 em `/plataforma/*` |
 | 9. Frontend | Área da plataforma, tela de ativação, funcionários, menu por permissão | Build, lint e navegação por papel |
 
-## 6. Decisões que dependem do proprietário
+## 6. Como colocar no ar
 
-1. Modelo de multi-tenancy (A ou B).
-2. Papel do usuário `ATRATIVA`.
-3. Continuidade do sistema desktop.
-4. Criação automática do banco de cada empresa (exige usuário MySQL com permissão `CREATE`) ou criação manual.
+```bash
+cd atrativa-shore-api/atrativa-api
+npm run plataforma:migrar                 # banco central
+npm run plataforma:superadmin             # SUPERADMIN_EMAIL e SUPERADMIN_SENHA no .env
+npm run plataforma:importar -- Atrativa   # banco atual vira a empresa nº 1, usuário ATRATIVA vira administrador
+npm run start:dev
+```
+
+Depois: entrar com o e-mail do superadministrador (vai para `/plataforma`), gerar um código de nova empresa e testar a ativação em `/ativar`.
+
+Migrations futuras do banco das empresas: `npm run empresas:migrar` aplica em todas.
+
+## 7. Onde está cada parte no código
+
+| Parte | Backend | Frontend |
+|---|---|---|
+| Banco central | `src/plataforma/entities`, `src/plataforma/migrations` | — |
+| Isolamento | `src/tenancy` (contexto, pool, provisionamento, modelo do banco) | — |
+| Acesso | `src/acesso` (permissões, guard), `src/auth` (login, refresh, sessão) | `contexts/AuthContext.tsx`, `layouts/navegacao.ts`, `App.tsx` |
+| Auditoria | `src/auditoria` | `components/ListaAuditoria.tsx`, `pages/Atividades` |
+| Funcionários | `src/funcionarios` | `pages/Funcionarios` |
+| Ativação | `src/ativacao` | `pages/Ativacao` |
+| Superadministrador | `src/plataforma/admin` | `pages/Plataforma` |
+| Comandos | `src/database/cli.ts` | — |
+
+## 8. Limitações desta etapa
+
+- Sem envio de e-mail: recuperação de senha é por senha temporária gerada pelo administrador (ou pelo superadministrador, para administradores de empresa).
+- Planos limitam usuários ativos; não há cobrança automática.
+- O caixa usa o mesmo terminal e turno (`PDV_TERMINAL`, `PDV_TURNO`) em todas as empresas; cada empresa tem o próprio caixa porque o banco é dela.
+- Indicadores comerciais globais (faturamento somado de todas as empresas) não foram incluídos: exigiriam consultar o banco de cada empresa.
+- O teste de isolamento com MySQL real (`E2E_SAAS=true npm run test:e2e`) precisa ser rodado na sua máquina; aqui ele foi escrito e compila, e os testes de isolamento do contexto rodaram com sucesso.
