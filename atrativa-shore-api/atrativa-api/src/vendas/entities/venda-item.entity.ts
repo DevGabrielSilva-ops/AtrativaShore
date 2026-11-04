@@ -5,11 +5,6 @@ import {
   quantidadeTransformer,
 } from '../../common/utils/transformadores.js';
 
-/**
- * mv_vendas_movimento — itens. Liga-se ao cabeçalho por `controle` (não por id).
- * modo_venda: 1 = produto vendido; 4 = item devolvido em troca;
- * 6 = recebimento de carnê (estes NÃO têm cabeçalho em mv_vendas).
- */
 @Entity('mv_vendas_movimento')
 export class VendaItem {
   @PrimaryGeneratedColumn({ name: 'id', type: 'int', unsigned: true })
@@ -27,7 +22,6 @@ export class VendaItem {
   @Column({ name: 'id_produto', type: 'int', unsigned: true, nullable: true })
   idProduto: number | null;
 
-  /** Valor unitário líquido (já com desconto/acréscimo rateados). */
   @Column({ name: 'valor', type: 'float', precision: 10, scale: 2, nullable: true, transformer: dinheiroTransformer })
   valorUnitario: number | null;
 

@@ -1,17 +1,7 @@
-/**
- * Aritmética monetária em centavos inteiros.
- *
- * O banco legado guarda valores em FLOAT(10,2). Somar floats em JavaScript
- * gera erros como 0.1 + 0.2 = 0.30000000000000004, então todo cálculo de
- * venda é feito em centavos (inteiros) e só convertido para reais na gravação.
- */
-
 export type Centavos = number;
 
-/** Arredonda half-up (0,5 sobe) de forma simétrica para negativos. */
 function arredondar(valor: number): number {
   const sinal = valor < 0 ? -1 : 1;
-  // toPrecision(15) elimina o ruído binário (ex.: 1.005 * 100 = 100.49999999999999).
   const absoluto = Number(Math.abs(valor).toPrecision(15));
   return sinal * Math.round(absoluto);
 }
@@ -29,7 +19,6 @@ export function paraReais(centavos: Centavos): number {
   return centavos / 100;
 }
 
-/** Valor unitário (centavos) × quantidade (até 3 casas) → total em centavos. */
 export function multiplicar(centavos: Centavos, quantidade: number): Centavos {
   return arredondar(centavos * quantidade);
 }
@@ -38,7 +27,6 @@ export function somar(valores: Centavos[]): Centavos {
   return valores.reduce((total, valor) => total + valor, 0);
 }
 
-/** Arredonda um número qualquer para N casas (usado na leitura das colunas FLOAT). */
 export function arredondarCasas(valor: number, casas: number): number {
   const fator = 10 ** casas;
   return arredondar(valor * fator) / fator;
@@ -48,11 +36,6 @@ export function arredondarQuantidade(quantidade: number): number {
   return arredondarCasas(quantidade, 3);
 }
 
-/**
- * Distribui um valor entre partes proporcionalmente aos pesos, sem perder
- * nem criar centavos (método do maior resto). A soma do resultado é
- * sempre exatamente igual a `total`.
- */
 export function ratear(total: Centavos, pesos: number[]): Centavos[] {
   if (pesos.length === 0) return [];
   if (!Number.isInteger(total)) throw new RangeError('total deve estar em centavos');
@@ -63,7 +46,6 @@ export function ratear(total: Centavos, pesos: number[]): Centavos[] {
   const somaPesos = pesos.reduce((s, p) => s + p, 0);
 
   if (somaPesos === 0) {
-    // Sem base proporcional: divide igualmente.
     return ratear(total, pesos.map(() => 1));
   }
 
@@ -83,11 +65,6 @@ export function ratear(total: Centavos, pesos: number[]): Centavos[] {
   return partes.map((parte) => sinal * parte);
 }
 
-/**
- * Divide o valor do carnê em parcelas no mesmo padrão do sistema legado:
- * as primeiras parcelas recebem o valor arredondado e a última absorve a
- * diferença (ex.: 119,00 em 3 → 39,67 + 39,67 + 39,66).
- */
 export function dividirParcelas(total: Centavos, quantidade: number): Centavos[] {
   if (!Number.isInteger(quantidade) || quantidade < 1) {
     throw new RangeError('quantidade de parcelas inválida');

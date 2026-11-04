@@ -2,8 +2,6 @@ import { FormaPagamento } from '../common/constantes/legado.js';
 import { horaDoControle } from '../common/utils/datas.js';
 import { numero } from '../common/utils/transformadores.js';
 
-/** Consultas e mapeamentos de venda reutilizados por vendas, clientes, caixa e relatórios. */
-
 export interface ValoresPagamento {
   dinheiro: number;
   pix: number;
@@ -60,7 +58,6 @@ export const SELECT_VENDA = `
     LEFT JOIN cad_clientes c ON c.id = v.id_cliente
     LEFT JOIN cad_login l ON l.id = v.id_login`;
 
-/** Coluna de mv_vendas para cada forma de pagamento. */
 export const COLUNA_FORMA: Record<FormaPagamento, string> = {
   [FormaPagamento.DINHEIRO]: 'vr_dinheiro',
   [FormaPagamento.PIX]: 'vr_pix',

@@ -11,7 +11,6 @@ import type { AtualizarClienteDto, CriarClienteDto, ListarClientesDto } from './
 import { ClienteObservacao } from './entities/cliente-observacao.entity.js';
 import { Cliente } from './entities/cliente.entity.js';
 
-/** Expressão SQL que remove a máscara do CPF gravado (o legado tem CPFs com e sem máscara). */
 const CPF_SEM_MASCARA = "REPLACE(REPLACE(REPLACE(REPLACE(c.cpf, '.', ''), '-', ''), '/', ''), ' ', '')";
 
 @Injectable()
@@ -22,7 +21,6 @@ export class ClientesService {
     private readonly config: ConfiguracaoService,
   ) {}
 
-  /** Limite do carnê, valor em parcelas abertas e quanto ainda pode comprar no carnê. */
   async creditoCarne(id: number): Promise<CreditoCarne> {
     const credito = await consultarCreditoCarne(this.fonte, id, this.config.valores.carneLimite);
     if (!credito) throw new NotFoundException(`Cliente #${id} não encontrado`);
@@ -69,7 +67,6 @@ export class ClientesService {
     const id = await this.fonte.transaction(async (manager) => {
       const resultado = await manager.insert(Cliente, dados);
       const novoId = Number(resultado.identifiers[0].id);
-      // Mesmo padrão de código do desktop: "1" + id + dígito EAN-13.
       await manager.update(Cliente, { id: novoId }, { codigo: codigoBarrasCliente(novoId) });
       return novoId;
     });
@@ -86,10 +83,6 @@ export class ClientesService {
     return this.obter(id);
   }
 
-  /**
-   * O banco não tem chaves estrangeiras, então a regra fica aqui: cliente
-   * com vendas ou carnês não pode ser excluído (o histórico ficaria órfão).
-   */
   async remover(id: number): Promise<void> {
     await this.obter(id);
     const [vinculos] = (await this.fonte.query(

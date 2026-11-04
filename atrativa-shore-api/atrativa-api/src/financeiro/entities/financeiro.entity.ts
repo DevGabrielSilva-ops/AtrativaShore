@@ -1,10 +1,6 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import { dataLegadaTransformer, dinheiroTransformer } from '../../common/utils/transformadores.js';
 
-/**
- * mv_financeiro — contas a receber/pagar e lançamentos de caixa.
- * origem: V = venda à vista, C = parcela de carnê, E = entrada de mercadoria.
- */
 @Entity('mv_financeiro')
 export class Financeiro {
   @PrimaryGeneratedColumn({ name: 'id', type: 'int', unsigned: true })

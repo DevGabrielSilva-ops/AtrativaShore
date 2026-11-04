@@ -12,7 +12,6 @@ import {
 } from 'class-validator';
 import { Aparar, MaiusculasAparadas } from '../../common/dto/transformacoes.js';
 
-/** Campos editáveis de cad_empresa (licença, terminais e turnos ficam com o desktop). */
 export class AtualizarEmpresaDto {
   @ApiPropertyOptional({ maxLength: 100 })
   @MaiusculasAparadas()

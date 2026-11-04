@@ -1,12 +1,6 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import { dataLegadaTransformer, dinheiroTransformer } from '../../common/utils/transformadores.js';
 
-/**
- * mv_vendas — cabeçalho da venda. Regras verificadas nos dados:
- *  - vr_total = vr_dinheiro + vr_cheque + vr_cartao + vr_carne + vr_ticket (+ vr_pix);
- *  - vr_adicional = DESCONTO concedido (informativo, os itens já são líquidos);
- *  - parcelas = nº de lançamentos gerados em mv_financeiro.
- */
 @Entity('mv_vendas')
 export class Venda {
   @PrimaryGeneratedColumn({ name: 'id', type: 'int', unsigned: true })
@@ -54,7 +48,6 @@ export class Venda {
   @Column({ name: 'vr_ticket', type: 'float', precision: 10, scale: 2, nullable: true, transformer: dinheiroTransformer })
   valorTicket: number | null;
 
-  /** Coluna NOVA, criada pela migration AdicionarVrPix. */
   @Column({ name: 'vr_pix', type: 'decimal', precision: 10, scale: 2, nullable: true, default: 0, transformer: dinheiroTransformer })
   valorPix: number | null;
 

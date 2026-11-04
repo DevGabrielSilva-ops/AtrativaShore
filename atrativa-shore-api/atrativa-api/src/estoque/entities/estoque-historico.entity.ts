@@ -5,12 +5,6 @@ import {
   quantidadeTransformer,
 } from '../../common/utils/transformadores.js';
 
-/**
- * mv_estoque_historico — lançamentos de estoque.
- * No legado só há entradas (notas e itens recebidos em troca). A API também
- * grava ajustes manuais, com numerodanota "AJ-<MOTIVO>" e quantidade
- * negativa quando é saída.
- */
 @Entity('mv_estoque_historico')
 export class EstoqueHistorico {
   @PrimaryGeneratedColumn({ name: 'id', type: 'int', unsigned: true })
@@ -37,7 +31,6 @@ export class EstoqueHistorico {
   @Column({ name: 'vr_compra', type: 'float', precision: 10, scale: 2, nullable: true, transformer: dinheiroTransformer })
   valorCompra: number | null;
 
-  /** Controle da venda quando o item entrou por troca. */
   @Column({ name: 'controle_venda', type: 'varchar', length: 14, nullable: true })
   controleVenda: string | null;
 

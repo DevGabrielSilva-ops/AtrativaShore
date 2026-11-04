@@ -36,13 +36,7 @@ export interface ResumoCaixa {
   vendas: { dinheiro: number; pix: number; cartao: number; carne: number; outros: number; total: number };
   descontos: number;
   recebimentosCarne: { quantidade: number; total: number };
-  /** Dinheiro + Pix + Cartão + recebimentos de carnê (vendas no carnê ainda não foram recebidas). */
   totalRecebido: number;
-  /**
-   * Troco inicial + vendas em dinheiro + recebimentos de carnê. O banco não
-   * registra a forma de pagamento do recebimento de carnê; considera-se dinheiro,
-   * como no desktop.
-   */
   dinheiroEsperadoNaGaveta: number;
   movimentos: MovimentoCaixa[];
 }
@@ -139,7 +133,6 @@ export class CaixaService {
     return paginado(linhas.map(mapearCaixa), Number(total), paginacao.page, paginacao.limit);
   }
 
-  /** Totais do caixa no período de abertura (as vendas só têm data, não hora, no banco). */
   async resumo(caixa: Caixa): Promise<ResumoCaixa> {
     const inicio = caixa.abertura.data ?? dataNoFuso(new Date(), this.config.fusoHorario);
     const fim = caixa.aberto || !caixa.fechamento.data

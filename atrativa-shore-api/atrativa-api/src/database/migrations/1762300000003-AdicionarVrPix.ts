@@ -1,15 +1,5 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Adiciona mv_vendas.vr_pix (o banco legado não tem forma de pagamento Pix).
- *
- * ATENÇÃO, compatibilidade com o desktop: se o sistema desktop grava vendas
- * com "INSERT INTO mv_vendas VALUES (...)" sem lista de colunas, uma coluna
- * a mais faz esse INSERT falhar. Teste uma venda no desktop logo após rodar
- * esta migration; se falhar, reverta com `npm run migration:revert`.
- *
- * Reverter remove a coluna e os valores de Pix gravados nela.
- */
 export class AdicionarVrPix1762300000003 implements MigrationInterface {
   name = 'AdicionarVrPix1762300000003';
 

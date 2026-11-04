@@ -4,11 +4,6 @@ import { gerarControle, proximoControle } from './datas.js';
 
 type TabelaComControle = 'mv_vendas' | 'mv_vendas_movimento' | 'mv_estoque_historico' | 'mv_financeiro';
 
-/**
- * Gera um "controle" (yyyymmddhhmmss) ainda não usado nas tabelas indicadas.
- * O desktop usa o mesmo formato; se o segundo atual já foi usado, avança
- * um segundo. O UNIQUE de mv_vendas.controle é a garantia final.
- */
 export async function controleDisponivel(
   manager: EntityManager,
   fusoHorario: string,

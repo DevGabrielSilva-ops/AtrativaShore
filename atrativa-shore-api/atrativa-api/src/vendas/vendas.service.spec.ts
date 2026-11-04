@@ -8,12 +8,6 @@ import type { EmpresaService } from '../empresa/empresa.service.js';
 import type { RegistrarVendaDto } from './dto/venda.dto.js';
 import { VendasService } from './vendas.service.js';
 
-/**
- * Banco falso, em memória, que imita só o que a venda usa: produtos,
- * saldos com UPDATE condicional e o registro das gravações. A transação
- * guarda as gravações em rascunho e só as "confirma" se o callback terminar
- * sem erro, como o COMMIT/ROLLBACK do MySQL.
- */
 class BancoFalso {
   produtos = new Map<number, Record<string, unknown>>();
   saldos = new Map<number, number>();
@@ -21,9 +15,7 @@ class BancoFalso {
   commits = 0;
   rollbacks = 0;
   caixaAberto = true;
-  /** Simula outro terminal vendendo o produto entre a conferência e a baixa. */
   roubarEstoqueAntesDaBaixa: number | null = null;
-  /** Cliente para o limite do carnê. */
   cliente = { limite_carne: null as string | null, faixasalarial: '2000.00' as string | null };
   carneEmAberto = 0;
 
@@ -265,7 +257,7 @@ describe('VendasService.registrar', () => {
     });
 
     it('aceita até o disponível (50% da renda menos as parcelas em aberto)', async () => {
-      banco.carneEmAberto = 700; // limite R$ 1.000, disponível R$ 300
+      banco.carneEmAberto = 700;
       await montar(banco).registrar(vendaCarne(300), usuario);
       expect(banco.commits).toBe(1);
     });
@@ -280,7 +272,7 @@ describe('VendasService.registrar', () => {
     it('parcelas pagas liberam o limite', async () => {
       banco.carneEmAberto = 1000;
       await expect(montar(banco).registrar(vendaCarne(100), usuario)).rejects.toBeInstanceOf(ConflictException);
-      banco.carneEmAberto = 900; // cliente pagou R$ 100
+      banco.carneEmAberto = 900;
       await montar(banco).registrar(vendaCarne(100), usuario);
       expect(banco.commits).toBe(1);
     });
@@ -294,7 +286,7 @@ describe('VendasService.registrar', () => {
     });
 
     it('a parte paga em dinheiro não conta para o limite', async () => {
-      banco.carneEmAberto = 900; // disponível R$ 100
+      banco.carneEmAberto = 900;
       await montar(banco).registrar(
         { ...vendaCarne(119), pagamentos: [{ forma: FormaPagamento.DINHEIRO, valor: 19 }, { forma: FormaPagamento.CARNE, valor: 100 }] },
         usuario,

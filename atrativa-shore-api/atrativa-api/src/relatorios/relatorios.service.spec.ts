@@ -65,7 +65,6 @@ describe('RelatoriosService', () => {
         variacaoQuantidadePercentual: 100,
       },
     });
-    // Vendas estornadas nunca entram nos totais.
     expect(consultas.filter((c) => c.sql.includes('FROM mv_vendas v')).every((c) => c.sql.includes('v.estornado = 0'))).toBe(
       true,
     );

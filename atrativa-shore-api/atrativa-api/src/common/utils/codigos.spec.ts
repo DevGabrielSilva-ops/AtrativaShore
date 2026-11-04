@@ -8,7 +8,6 @@ import {
   notaTroca,
 } from './codigos.js';
 
-/** Todos os valores esperados abaixo foram copiados de registros reais do banco. */
 describe('códigos no padrão do sistema desktop', () => {
   it('calcula o dígito EAN-13', () => {
     expect(digitoEan13('100000000001')).toBe('6');

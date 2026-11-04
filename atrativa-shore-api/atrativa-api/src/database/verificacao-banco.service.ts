@@ -22,10 +22,6 @@ const TABELAS_TRANSACIONAIS = [
   'mv_financeiro',
 ];
 
-/**
- * Na inicialização, confere se as migrations da API já foram aplicadas
- * e avisa no log. A API não altera o banco sozinha.
- */
 @Injectable()
 export class VerificacaoBancoService implements OnApplicationBootstrap {
   private readonly logger = new Logger('Banco');
@@ -83,13 +79,6 @@ export class VerificacaoBancoService implements OnApplicationBootstrap {
     return this.estado;
   }
 
-  /**
-   * Garante que as tabelas de venda/estoque já estão em InnoDB antes de uma
-   * operação que depende de rollback. Se ainda não estiverem, verifica de
-   * novo (a migration pode ter sido aplicada com a API rodando) e, se
-   * continuarem em MyISAM, recusa a operação em vez de arriscar dados
-   * inconsistentes.
-   */
   async garantirTransacoes(): Promise<void> {
     if (this.estado && this.estado.tabelasMyisam.length === 0) return;
     const estado = await this.verificar();

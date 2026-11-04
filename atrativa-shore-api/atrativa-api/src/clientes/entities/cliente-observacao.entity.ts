@@ -1,6 +1,5 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-/** cad_clientes_obs — observações e foto do cliente (relação lógica por id_cliente). */
 @Entity('cad_clientes_obs')
 export class ClienteObservacao {
   @PrimaryGeneratedColumn({ name: 'id', type: 'int', unsigned: true })

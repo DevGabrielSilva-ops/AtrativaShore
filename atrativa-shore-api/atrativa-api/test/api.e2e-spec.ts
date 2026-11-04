@@ -1,14 +1,3 @@
-/**
- * Teste de ponta a ponta contra um MySQL REAL de teste.
- *
- * Pré-requisitos (ver README, seção "Testes"):
- *  1. banco de teste separado com o dump importado (npm run db:converter-dump);
- *  2. migrations aplicadas nesse banco;
- *  3. variáveis E2E_DB_* apontando para ele.
- *
- * Grava registros de teste (cliente, produto, nota, vendas). Por segurança,
- * só roda se E2E_DB_DATABASE estiver definido e for diferente de DB_DATABASE.
- */
 import type { INestApplication } from '@nestjs/common';
 import { ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
@@ -17,9 +6,7 @@ import type { App } from 'supertest/types.js';
 
 try {
   process.loadEnvFile('.env');
-} catch {
-  // sem .env: usa o ambiente
-}
+} catch {}
 
 const bancoTeste = process.env.E2E_DB_DATABASE;
 const habilitado = Boolean(bancoTeste) && bancoTeste !== process.env.DB_DATABASE;
@@ -100,14 +87,12 @@ describe.skipIf(!habilitado)('API Atrativa Shore (e2e, MySQL de teste)', () => {
       .expect(201);
     expect((await autenticado('get', `/produtos/${idProduto}`)).body.data.quantidadeEstoque).toBe(5);
 
-    // Venda: preço sugerido = a prazo (30,00); total calculado pela API.
     const venda = await autenticado('post', '/vendas')
       .send({ itens: [{ idProduto, quantidade: 2 }], pagamentos: [{ forma: 'DINHEIRO', valor: 60 }] })
       .expect(201);
     expect(venda.body.data).toMatchObject({ total: 60, formasPagamento: ['Dinheiro'] });
     expect((await autenticado('get', `/produtos/${idProduto}`)).body.data.quantidadeEstoque).toBe(3);
 
-    // Estoque insuficiente: 409 e nada é gravado.
     const antes = (await autenticado('get', `/vendas?idCliente=0&limit=1`)).body.meta.total;
     await autenticado('post', '/vendas')
       .send({ itens: [{ idProduto, quantidade: 10 }], pagamentos: [{ forma: 'DINHEIRO', valor: 300 }] })
@@ -115,16 +100,13 @@ describe.skipIf(!habilitado)('API Atrativa Shore (e2e, MySQL de teste)', () => {
     expect((await autenticado('get', `/vendas?idCliente=0&limit=1`)).body.meta.total).toBe(antes);
     expect((await autenticado('get', `/produtos/${idProduto}`)).body.data.quantidadeEstoque).toBe(3);
 
-    // Total enviado errado: 400.
     await autenticado('post', '/vendas')
       .send({ itens: [{ idProduto, quantidade: 1 }], pagamentos: [{ forma: 'DINHEIRO', valor: 1 }] })
       .expect(400);
 
-    // Estorno devolve o estoque.
     await autenticado('post', `/vendas/${venda.body.data.id}/estorno`).expect(200);
     expect((await autenticado('get', `/produtos/${idProduto}`)).body.data.quantidadeEstoque).toBe(5);
 
-    // Carnê em 3 parcelas e baixa da primeira.
     const carne = await autenticado('post', '/vendas')
       .send({
         idCliente,
@@ -141,7 +123,6 @@ describe.skipIf(!habilitado)('API Atrativa Shore (e2e, MySQL de teste)', () => {
       .expect(200);
     expect((await autenticado('get', `/carnes?idCliente=${idCliente}`)).body.meta.total).toBe(2);
 
-    // Cliente com vendas não pode ser excluído.
     await autenticado('delete', `/clientes/${idCliente}`).expect(409);
 
     const dashboard = await autenticado('get', '/relatorios/dashboard').expect(200);

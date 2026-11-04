@@ -1,15 +1,6 @@
 import { FormaPagamento } from '../../common/constantes/legado.js';
 import { type Centavos, formatarReais, multiplicar, ratear, somar } from '../../common/utils/dinheiro.js';
 
-/**
- * Cálculo da venda feito inteiramente no backend, em centavos.
- * Nenhum total enviado pelo frontend é usado: só produtos, quantidades,
- * preços unitários (sugeridos ou editados), desconto, acréscimo e pagamentos.
- *
- * Como no desktop, desconto e acréscimo são rateados nos itens, que são
- * gravados com o valor líquido. Assim a soma dos itens bate com o total.
- */
-
 export class ErroCalculoVenda extends Error {}
 
 export interface ItemCalculo {
@@ -29,16 +20,12 @@ export interface EntradaCalculo {
   desconto: Centavos;
   acrescimo: Centavos;
   pagamentos: PagamentoCalculo[];
-  /** cad_empresa.max_desc (%); null = sem limite. */
   descontoMaximoPercentual: number | null;
 }
 
 export interface ItemCalculado extends ItemCalculo {
-  /** preço × quantidade, antes do rateio. */
   bruto: Centavos;
-  /** valor gravado em mv_vendas_movimento.vr_total. */
   total: Centavos;
-  /** valor gravado em mv_vendas_movimento.valor (total ÷ quantidade, arredondado). */
   valorUnitario: Centavos;
 }
 
@@ -92,7 +79,6 @@ export function calcularVenda(entrada: EntradaCalculo): ResultadoCalculo {
     throw new ErroCalculoVenda(`Desconto acima do máximo permitido pela empresa (${maximo}%)`);
   }
 
-  // Rateio proporcional do ajuste (acréscimo − desconto) sobre o valor bruto de cada item.
   const ajustes = ratear(entrada.acrescimo - entrada.desconto, brutos);
   const itens: ItemCalculado[] = entrada.itens.map((item, indice) => {
     const total = brutos[indice] + ajustes[indice];

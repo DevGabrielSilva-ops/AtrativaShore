@@ -5,11 +5,6 @@ import { ConfiguracaoService } from '../config/configuracao.service.js';
 import type { AtualizarEmpresaDto } from './dto/atualizar-empresa.dto.js';
 import { Empresa } from './entities/empresa.entity.js';
 
-/**
- * O banco legado tem uma única empresa (cad_empresa id=1) e nenhuma tabela
- * possui id_empresa, então a API trabalha com essa empresa (EMPRESA_ID).
- * Cadastro e exclusão de empresas não são expostos.
- */
 @Injectable()
 export class EmpresaService {
   constructor(

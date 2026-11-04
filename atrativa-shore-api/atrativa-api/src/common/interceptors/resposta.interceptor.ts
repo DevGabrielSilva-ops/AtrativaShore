@@ -11,12 +11,6 @@ function ehPaginado(valor: unknown): boolean {
   );
 }
 
-/**
- * Padroniza as respostas de sucesso:
- *  - listas paginadas: { data: [...], meta: { page, limit, total, totalPages } }
- *  - demais respostas: { data: <objeto> }
- * Respostas sem corpo (204) passam direto.
- */
 @Injectable()
 export class RespostaInterceptor implements NestInterceptor {
   intercept(_contexto: ExecutionContext, proximo: CallHandler): Observable<unknown> {

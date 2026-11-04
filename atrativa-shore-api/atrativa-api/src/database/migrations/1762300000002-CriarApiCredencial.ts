@@ -1,12 +1,5 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Cria a tabela api_credencial, que guarda o hash bcrypt da senha usada
- * na API. cad_login não é alterada, então o desktop continua funcionando.
- *
- * Reverter apaga a tabela: os usuários voltam a entrar na API com a senha
- * do desktop (que é convertida em hash de novo no próximo login).
- */
 export class CriarApiCredencial1762300000002 implements MigrationInterface {
   name = 'CriarApiCredencial1762300000002';
 

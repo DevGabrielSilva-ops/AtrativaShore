@@ -14,7 +14,6 @@ import { Usuario } from '../usuarios/entities/usuario.entity.js';
 import { VendaItem } from '../vendas/entities/venda-item.entity.js';
 import { Venda } from '../vendas/entities/venda.entity.js';
 
-/** Todas as tabelas mapeadas pela API (nomes reais do banco). */
 export const ENTIDADES = [
   Empresa,
   Usuario,

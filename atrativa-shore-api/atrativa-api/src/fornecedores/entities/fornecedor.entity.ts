@@ -1,6 +1,5 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-/** cad_fornecedores */
 @Entity('cad_fornecedores')
 export class Fornecedor {
   @PrimaryGeneratedColumn({ name: 'id', type: 'int', unsigned: true })

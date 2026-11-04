@@ -21,7 +21,6 @@ export class UsuariosService {
     @InjectRepository(Perfil) private readonly perfis: Repository<Perfil>,
   ) {}
 
-  /** Busca pelo login incluindo a senha legada (uso exclusivo da autenticação). */
   async buscarParaAutenticacao(login: string): Promise<Usuario | null> {
     return this.usuarios
       .createQueryBuilder('u')

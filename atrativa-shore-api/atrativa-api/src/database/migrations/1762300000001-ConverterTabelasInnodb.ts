@@ -1,16 +1,5 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 
-/**
- * Converte para InnoDB as tabelas envolvidas em vendas e estoque.
- * MyISAM ignora START TRANSACTION/ROLLBACK, então sem esta conversão uma
- * venda que falha no meio pode ficar gravada sem baixar o estoque.
- *
- * - Não altera colunas nem dados; só o mecanismo de armazenamento.
- * - Idempotente: tabelas já em InnoDB são puladas.
- * - Reversível: `npm run migration:revert` volta para MyISAM.
- * - FAÇA BACKUP antes (mysqldump). Em tabelas grandes o ALTER bloqueia
- *   a tabela enquanto roda; execute fora do horário da loja.
- */
 export class ConverterTabelasInnodb1762300000001 implements MigrationInterface {
   name = 'ConverterTabelasInnodb1762300000001';
 
@@ -35,8 +24,6 @@ export class ConverterTabelasInnodb1762300000001 implements MigrationInterface {
     const [{ modo }] = (await queryRunner.query('SELECT @@SESSION.sql_mode AS modo')) as Array<{
       modo: string;
     }>;
-    // Os defaults legados ('0000-00-00', FLOAT(M,D)) são rejeitados em modo estrito
-    // durante a reconstrução da tabela; o modo original é restaurado ao final.
     await queryRunner.query("SET SESSION sql_mode = ''");
     try {
       for (const tabela of this.tabelas) {

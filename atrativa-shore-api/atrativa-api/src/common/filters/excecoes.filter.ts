@@ -34,7 +34,6 @@ const NOMES_STATUS: Record<number, string> = {
   503: 'Service Unavailable',
 };
 
-/** Erros do MySQL que têm causa conhecida e mensagem útil para o cliente. */
 function traduzirErroMysql(erro: ErroDriverMysql): { status: number; mensagem: string } | null {
   switch (erro.code) {
     case 'ER_DUP_ENTRY':
@@ -56,11 +55,6 @@ function traduzirErroMysql(erro: ErroDriverMysql): { status: number; mensagem: s
   }
 }
 
-/**
- * Filtro global: toda resposta de erro tem o mesmo formato
- * { statusCode, error, message, path, timestamp }.
- * Erros inesperados viram 500 sem expor detalhes internos (que vão para o log).
- */
 @Catch()
 export class ExcecoesFilter implements ExceptionFilter {
   private readonly logger = new Logger('Excecoes');

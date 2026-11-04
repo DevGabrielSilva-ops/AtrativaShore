@@ -1,7 +1,6 @@
 import { registerDecorator, type ValidationOptions } from 'class-validator';
 import { cpfOuCnpjValido } from '../utils/documentos.js';
 
-/** Valida CPF (11 dígitos) ou CNPJ (14 dígitos), com ou sem máscara. */
 export function IsCpfOuCnpj(opcoes?: ValidationOptions): PropertyDecorator {
   return (alvo: object, propriedade: string | symbol) => {
     registerDecorator({

@@ -23,7 +23,6 @@ export interface Periodo {
   fim: string;
 }
 
-/** Venda válida: não estornada, com controle e dentro do período. */
 const VENDA_VALIDA = 'v.estornado = 0 AND v.controle IS NOT NULL AND v.data_venda BETWEEN ? AND ?';
 
 function variacao(atual: number, anterior: number): number | null {
@@ -31,16 +30,6 @@ function variacao(atual: number, anterior: number): number | null {
   return arredondarCasas(((atual - anterior) / anterior) * 100, 2);
 }
 
-/**
- * Relatórios e indicadores do dashboard, sempre por SQL agregado no banco
- * (sem carregar registros para somar em memória).
- *
- * Definições:
- *  - faturamento = soma de mv_vendas.vr_total das vendas não estornadas,
- *    incluindo as vendas no carnê (regime de competência);
- *  - recebimentos de carnê são informados à parte (não somam no faturamento);
- *  - a empresa é única no banco, então todo relatório é da empresa configurada.
- */
 @Injectable()
 export class RelatoriosService {
   constructor(
@@ -55,7 +44,6 @@ export class RelatoriosService {
     return { inicio: hoje, fim: hoje };
   }
 
-  /** Período informado ou, por padrão, do dia 1º do mês corrente até hoje. */
   resolverPeriodo(periodo: PeriodoDto): Periodo {
     const hoje = dataNoFuso(new Date(), this.config.fusoHorario);
     const inicio = periodo.inicio ?? `${hoje.slice(0, 8)}01`;
@@ -240,7 +228,6 @@ export class RelatoriosService {
     };
   }
 
-  /** Clientes com parcelas de carnê em aberto. */
   async clientesDebito(paginacao: PaginacaoDto) {
     const hoje = dataNoFuso(new Date(), this.config.fusoHorario);
     const base = `FROM mv_financeiro f WHERE f.origem_lancamento = ? AND f.efetuado = ? AND f.estornado = 0`;
@@ -282,7 +269,6 @@ export class RelatoriosService {
     };
   }
 
-  /** Parcelas de carnê recebidas no período (pela data de pagamento). */
   async baixasCarne(filtro: PeriodoPaginadoDto) {
     const periodo = this.resolverPeriodo(filtro);
     const where = `WHERE f.origem_lancamento = ? AND f.efetuado = ? AND f.estornado = 0
@@ -324,7 +310,6 @@ export class RelatoriosService {
     };
   }
 
-  /** Mercadorias lançadas por nota no período e o investimento (quantidade × custo). */
   async mercadorias(filtro: PeriodoPaginadoDto) {
     const periodo = this.resolverPeriodo(filtro);
     const where = `WHERE h.estornado = 0 AND h.data_lanca BETWEEN ? AND ?

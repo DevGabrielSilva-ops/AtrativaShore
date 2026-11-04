@@ -1,11 +1,6 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import { dinheiroTransformer, numeroCasas } from '../../common/utils/transformadores.js';
 
-/**
- * cad_produtos.
- * Preços: vr_venda = preço A PRAZO; vr_venda_2 = preço À VISTA
- * (confirmado pela tela de produtos e pelo nome dos produtos, ex.: "FRONHA IBI 14,99").
- */
 @Entity('cad_produtos')
 export class Produto {
   @PrimaryGeneratedColumn({ name: 'id', type: 'int', unsigned: true })
@@ -26,7 +21,6 @@ export class Produto {
   @Column({ name: 'vr_venda_2', type: 'float', precision: 10, scale: 2, nullable: true, transformer: dinheiroTransformer })
   precoVista: number | null;
 
-  /** 1 = controla estoque; 6 = item de serviço (recebimento de carnê). */
   @Column({ name: 'modo_estoque', type: 'int', unsigned: true, nullable: true })
   modoEstoque: number | null;
 

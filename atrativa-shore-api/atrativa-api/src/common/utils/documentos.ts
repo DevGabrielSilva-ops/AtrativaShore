@@ -32,7 +32,6 @@ export function cnpjValido(valor: string): boolean {
   );
 }
 
-/** A coluna cad_clientes.cpf (varchar 18) aceita CPF ou CNPJ. */
 export function cpfOuCnpjValido(valor: string): boolean {
   const digitos = somenteDigitos(valor);
   return digitos.length === 11 ? cpfValido(digitos) : cnpjValido(digitos);

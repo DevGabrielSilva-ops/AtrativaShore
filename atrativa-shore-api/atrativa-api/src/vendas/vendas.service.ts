@@ -101,17 +101,6 @@ export class VendasService {
     private readonly banco: VerificacaoBancoService,
   ) {}
 
-  // ---------------------------------------------------------------- registro
-
-  /**
-   * Registra a venda numa única transação:
-   *  1. valida produtos, cliente, caixa e pagamentos;
-   *  2. calcula todos os valores no backend (o frontend não envia totais);
-   *  3. bloqueia os saldos (SELECT … FOR UPDATE) e confere o estoque;
-   *  4. grava mv_vendas, mv_vendas_movimento e mv_financeiro;
-   *  5. baixa o estoque (e devolve ao estoque os itens de troca).
-   * Qualquer erro desfaz tudo (ROLLBACK).
-   */
   async registrar(dto: RegistrarVendaDto, usuario: UsuarioAutenticado): Promise<VendaDetalhe> {
     await this.banco.garantirTransacoes();
     const { terminal, exigirCaixaAberto } = this.config.pdv;
@@ -172,7 +161,6 @@ export class VendasService {
       descontoMaximoPercentual: descontoMaximo,
     });
 
-    // Limite do carnê: parcelas em aberto + esta venda não podem passar do limite do cliente.
     const valorCarne = calculo.porForma[FormaPagamento.CARNE];
     if (valorCarne > 0) {
       const credito = await consultarCreditoCarne(manager, idCliente, this.config.valores.carneLimite, true);
@@ -180,7 +168,6 @@ export class VendasService {
       garantirLimiteCarne(credito, valorCarne, nomeCliente);
     }
 
-    // Estoque: bloqueia os saldos e confere antes de gravar qualquer coisa.
     const saidas = agruparQuantidades(
       calculo.itens.filter((item) => produtos.get(item.idProduto)!.modoEstoque === MODO_ESTOQUE.CONTROLA),
     );
@@ -206,7 +193,6 @@ export class VendasService {
       idLogin: usuario.id,
       valorTotal: paraReais(calculo.liquido),
       valorDesconto: paraReais(calculo.desconto),
-      // No legado, "parcelas" = nº de lançamentos gerados em mv_financeiro.
       parcelas: parcelasCarne.length + (aVistaCaixa > 0 ? 1 : 0),
       estornado: 0,
       dataEstorno: null,
@@ -247,7 +233,6 @@ export class VendasService {
       await baixarSaldo(manager, idProduto, quantidade, produtos.get(idProduto)!.nome ?? `#${idProduto}`);
     }
 
-    // Troca: o item devolvido volta ao estoque, registrado como no desktop.
     for (const troca of calculo.trocas) {
       const produto = produtos.get(troca.idProduto)!;
       if (produto.modoEstoque !== MODO_ESTOQUE.CONTROLA) continue;
@@ -267,8 +252,6 @@ export class VendasService {
       await creditarSaldo(manager, produto.id, troca.quantidade);
     }
 
-    // Financeiro: dinheiro + Pix entram no caixa (origem V); cartão não gera
-    // lançamento (igual ao desktop); carnê gera uma parcela por mês (origem C).
     const historicoVenda = `CONTROLE: ${controle} VENDEDOR: ${usuario.login} TERMINAL: ${terminal} TURNO: ${turno}`;
     const lancamentos: Array<Partial<Financeiro>> = [];
     if (aVistaCaixa > 0) {
@@ -367,7 +350,6 @@ export class VendasService {
 
   private itemCalculo(item: ItemVendaDto, produtos: Map<number, ProdutoVenda>) {
     const produto = produtos.get(item.idProduto)!;
-    // Preço sugerido = a prazo (vr_venda); o vendedor pode informar outro.
     const sugerido = (produto.precoPrazo ?? 0) > 0 ? produto.precoPrazo! : (produto.precoVista ?? 0);
     const preco = item.precoUnitario ?? sugerido;
     if (preco <= 0) {
@@ -405,13 +387,6 @@ export class VendasService {
     return linha.nome_cliente;
   }
 
-  // ---------------------------------------------------------------- estorno
-
-  /**
-   * Estorno (cancelamento) lógico, como no desktop: marca venda, itens e
-   * lançamentos com estornado = 1 e devolve as quantidades ao estoque.
-   * Não é permitido se alguma parcela do carnê já foi paga.
-   */
   async estornar(id: number): Promise<VendaDetalhe> {
     await this.banco.garantirTransacoes();
     const hoje = dataNoFuso(new Date(), this.config.fusoHorario);
@@ -475,7 +450,6 @@ export class VendasService {
       for (const [idProduto, quantidade] of devolver) {
         await creditarSaldo(manager, idProduto, quantidade);
       }
-      // Itens recebidos em troca saem de novo do estoque (se ainda estiverem lá).
       for (const [idProduto, quantidade] of retirar) {
         await baixarSaldo(
           manager,
@@ -493,8 +467,6 @@ export class VendasService {
     });
     return this.obterPorControle(controle);
   }
-
-  // ---------------------------------------------------------------- consultas
 
   async listar(filtro: ListarVendasDto): Promise<Paginado<VendaResumo>> {
     const condicoes = ['v.controle IS NOT NULL'];

@@ -15,7 +15,6 @@ export interface LinhaCaixa {
   status_caixa: string | null;
 }
 
-/** Caixa aberto do terminal (status 'P'), se houver. */
 export async function buscarCaixaAberto(
   executor: DataSource | EntityManager,
   terminal: string,

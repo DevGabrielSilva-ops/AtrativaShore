@@ -1,20 +1,4 @@
 #!/usr/bin/env node
-/**
- * Converte o dump do MySQL 4.0 (bd.sql) para importar no MySQL 8.
- *
- *   node scripts/converter-dump-mysql8.mjs <entrada.sql> <saida.sql>
- *
- * O que muda:
- *  - "TYPE=MyISAM" (removido no MySQL 5.5+) vira "ENGINE=MyISAM DEFAULT CHARSET=latin1";
- *  - cabeçalho com SET NAMES latin1 e sql_mode vazio, para aceitar os
- *    defaults legados ('0000-00-00', FLOAT(M,D), ZEROFILL).
- *
- * O que NÃO muda: nomes, colunas, tipos e dados. Os bytes são preservados
- * (leitura e escrita em latin1), inclusive os acentos em CP850 que o desktop gravou.
- *
- * ATENÇÃO: o dump começa cada tabela com DROP TABLE IF EXISTS. Importe
- * apenas em um banco vazio ou de teste, nunca por cima do banco em uso.
- */
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const [entrada, saida] = process.argv.slice(2);
@@ -35,7 +19,6 @@ const convertido = original
     substituicoes += 1;
     return ') ENGINE=MyISAM DEFAULT CHARSET=latin1;';
   })
-  // Linhas só com hífens ("-----"): o MySQL 8 exige "-- " (com espaço) para comentário.
   .replace(/^(-{3,})[ \t]*(\r?)$/gm, '-- $1$2');
 
 if (substituicoes !== tabelas) {

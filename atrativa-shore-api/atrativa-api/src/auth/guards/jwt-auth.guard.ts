@@ -3,7 +3,6 @@ import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import { CHAVE_PUBLICO } from '../../common/decorators/publico.decorator.js';
 
-/** Guard global: toda rota exige "Authorization: Bearer <token>", exceto as marcadas com @Publico(). */
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
   constructor(private readonly reflector: Reflector) {

@@ -16,7 +16,6 @@ import { Aparar, MaiusculasAparadas } from '../../common/dto/transformacoes.js';
 import { IsCpfOuCnpj } from '../../common/validacao/cpf-cnpj.validator.js';
 import { REGEX_DATA_ISO } from '../../common/utils/datas.js';
 
-/** Tamanhos máximos = tamanhos reais das colunas de cad_clientes. */
 export class CriarClienteDto {
   @ApiProperty({ example: 'MARIA SILVA', maxLength: 60 })
   @MaiusculasAparadas()

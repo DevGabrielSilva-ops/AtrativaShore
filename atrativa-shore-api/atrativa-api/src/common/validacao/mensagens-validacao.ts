@@ -1,9 +1,5 @@
 import { BadRequestException, type ValidationError } from '@nestjs/common';
 
-/**
- * Traduz as mensagens padrão do class-validator para português e achata
- * erros de objetos aninhados ("itens.0.quantidade: ...").
- */
 const TRADUCOES: Array<[RegExp, string]> = [
   [/^property (\S+) should not exist$/, 'o campo $1 não é permitido'],
   [/^(\S+) should not be empty$/, '$1 é obrigatório'],
@@ -40,7 +36,6 @@ export function achatarErros(erros: ValidationError[], prefixo = ''): string[] {
     const caminho = prefixo ? `${prefixo}.${erro.property}` : erro.property;
     const proprias = Object.values(erro.constraints ?? {}).map((mensagem) => {
       const traduzida = traduzirMensagem(mensagem);
-      // Mensagens de objetos aninhados vêm só com o nome da propriedade; mostramos o caminho completo.
       return prefixo && traduzida.startsWith(erro.property)
         ? caminho + traduzida.slice(erro.property.length)
         : traduzida;

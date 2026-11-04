@@ -30,7 +30,6 @@ export interface ProdutoResposta {
   valorCompra: number | null;
   precoVista: number | null;
   precoPrazo: number | null;
-  /** (preço à vista − compra) / compra × 100. Calculado, não existe no banco. */
   lucroBrutoPercentual: number | null;
   estoqueMinimo: number | null;
   quantidadeEstoque: number | null;
@@ -159,7 +158,6 @@ export class ProdutosService {
 
   async estoqueBaixo(filtro: EstoqueBaixoDto): Promise<Paginado<ProdutoResposta>> {
     const limite = filtro.limite ?? this.config.valores.estoqueBaixoLimitePadrao;
-    // Usa o mínimo cadastrado; sem mínimo (o caso de todos hoje), usa o limite informado.
     const where = `WHERE p.modo_estoque = ? AND e.quantidade IS NOT NULL
       AND e.quantidade <= CASE WHEN p.min_estoque > 0 THEN p.min_estoque ELSE ? END`;
     const parametros = [MODO_ESTOQUE.CONTROLA, limite];
@@ -207,7 +205,6 @@ export class ProdutosService {
       if (!dto.codigoBarras) {
         await manager.update(Produto, { id: novoId }, { codigoBarras: await this.gerarCodigo(manager, novoId) });
       }
-      // Todo produto controlado precisa da linha de saldo (o desktop cria do mesmo jeito).
       await manager.insert(Estoque, { idProduto: novoId, quantidade: 0, modoEstoque: MODO_ESTOQUE.CONTROLA });
       return novoId;
     });
@@ -224,7 +221,6 @@ export class ProdutosService {
     return this.obter(id);
   }
 
-  /** Produto com vendas ou movimentação de estoque não pode ser excluído (o histórico ficaria órfão). */
   async remover(id: number): Promise<void> {
     const produto = await this.obter(id);
     const [vinculos] = (await this.fonte.query(

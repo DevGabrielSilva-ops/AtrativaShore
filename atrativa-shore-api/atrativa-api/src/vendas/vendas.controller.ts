@@ -51,7 +51,6 @@ export class VendasController {
   }
 }
 
-/** Rota aninhada /clientes/:id/vendas (fica aqui para não criar dependência circular entre módulos). */
 @ApiTags('Clientes')
 @ApiBearerAuth()
 @Controller('clientes')

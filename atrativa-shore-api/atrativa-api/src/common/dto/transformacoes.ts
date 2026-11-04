@@ -1,6 +1,5 @@
 import { Transform } from 'class-transformer';
 
-/** Query string "true"/"false" → boolean (a conversão implícita transformaria "false" em true). */
 export function ParaBooleano(): PropertyDecorator {
   return Transform(({ value }: { value: unknown }) => {
     if (value === undefined || value === null || value === '') return undefined;
@@ -12,7 +11,6 @@ export function ParaBooleano(): PropertyDecorator {
   });
 }
 
-/** Remove espaços nas pontas; string vazia vira undefined (campo não informado). */
 export function Aparar(): PropertyDecorator {
   return Transform(({ value }: { value: unknown }) => {
     if (typeof value !== 'string') return value;
@@ -21,7 +19,6 @@ export function Aparar(): PropertyDecorator {
   });
 }
 
-/** Igual a Aparar(), mas em maiúsculas (padrão dos cadastros do legado). */
 export function MaiusculasAparadas(): PropertyDecorator {
   return Transform(({ value }: { value: unknown }) => {
     if (typeof value !== 'string') return value;

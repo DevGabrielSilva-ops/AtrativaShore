@@ -13,7 +13,7 @@ describe('dinheiro', () => {
     expect(paraCentavos(0.1 + 0.2)).toBe(30);
     expect(paraCentavos(1.005)).toBe(101);
     expect(paraCentavos('24.99')).toBe(2499);
-    expect(paraCentavos(24.989999771118164)).toBe(2499); // leitura de FLOAT(10,2)
+    expect(paraCentavos(24.989999771118164)).toBe(2499);
     expect(paraCentavos(null)).toBe(0);
     expect(paraCentavos(-1.005)).toBe(-101);
     expect(paraReais(2499)).toBe(24.99);
@@ -24,8 +24,8 @@ describe('dinheiro', () => {
   });
 
   it('multiplica preço por quantidade fracionada arredondando o total', () => {
-    expect(multiplicar(15, 150)).toBe(2250); // 0,15 × 150 = 22,50 (venda real do banco)
-    expect(multiplicar(999, 1.5)).toBe(1499); // 14,985 → 14,99
+    expect(multiplicar(15, 150)).toBe(2250);
+    expect(multiplicar(999, 1.5)).toBe(1499);
     expect(multiplicar(240, 10)).toBe(2400);
   });
 
@@ -46,7 +46,7 @@ describe('dinheiro', () => {
   });
 
   it('divide o carnê como o desktop (última parcela absorve a diferença)', () => {
-    expect(dividirParcelas(11900, 3)).toEqual([3967, 3967, 3966]); // 119,00 → 39,67 + 39,67 + 39,66
+    expect(dividirParcelas(11900, 3)).toEqual([3967, 3967, 3966]);
     expect(dividirParcelas(50000, 4)).toEqual([12500, 12500, 12500, 12500]);
     expect(dividirParcelas(9000, 3)).toEqual([3000, 3000, 3000]);
     expect(() => dividirParcelas(100, 0)).toThrow(RangeError);

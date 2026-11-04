@@ -1,7 +1,6 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import { quantidadeTransformer } from '../../common/utils/transformadores.js';
 
-/** mv_estoque — saldo atual, uma linha por produto (UNIQUE id_produto). */
 @Entity('mv_estoque')
 export class Estoque {
   @PrimaryGeneratedColumn({ name: 'id', type: 'int', unsigned: true })

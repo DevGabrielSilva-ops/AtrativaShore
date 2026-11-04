@@ -38,7 +38,6 @@ export interface Movimentacao {
   tipo: TipoMovimentacao;
   idProduto: number | null;
   produto: string;
-  /** Positiva = entrada; negativa = saída. */
   quantidade: number;
   valorUnitario: number | null;
   documento: string | null;
@@ -60,7 +59,6 @@ interface ProdutoBasico {
   idFornecedor: number | null;
 }
 
-/** Classificação usada no histórico unificado (o legado não tem coluna de tipo). */
 const TIPO_HISTORICO = `CASE
     WHEN h.numerodanota LIKE '${PREFIXO_NOTA_AJUSTE}%' THEN IF(h.quantidade < 0, 'AJUSTE_SAIDA', 'AJUSTE_ENTRADA')
     WHEN h.numerodanota LIKE 'V%' THEN 'TROCA'
@@ -85,11 +83,6 @@ export class EstoqueService {
     return { ...produto, ultimasMovimentacoes: movimentos.data };
   }
 
-  /**
-   * Entrada de mercadorias (nota). Reproduz o que o desktop grava:
-   * uma linha em mv_estoque_historico por item, soma no saldo e uma conta
-   * a pagar em mv_financeiro (origem E, plano "Compra de mercadoria").
-   */
   async registrarEntrada(dto: RegistrarEntradaDto, usuario: UsuarioAutenticado): Promise<ResultadoEntrada> {
     await this.banco.garantirTransacoes();
     const fuso = this.config.fusoHorario;
@@ -145,7 +138,6 @@ export class EstoqueService {
           tipo: TIPO_FINANCEIRO.SAIDA,
           parcela: 1,
           valorPago: valor,
-          // O desktop grava aqui o id do usuário que lançou a nota.
           idCliente: usuario.id,
           historico: `Compra de mercadoria, nota: ${numeroNota} Fornecedor: ${nomeFornecedor ?? ''} Total de parcelas: 1`.slice(0, 200),
           idPlano: PLANO_CONTAS.COMPRA_MERCADORIA,
@@ -165,7 +157,6 @@ export class EstoqueService {
     });
   }
 
-  /** Ajuste manual (perda, avaria, contagem...). Saída é gravada com quantidade negativa. */
   async registrarAjuste(dto: RegistrarAjusteDto): Promise<ProdutoResposta> {
     await this.banco.garantirTransacoes();
     const fuso = this.config.fusoHorario;
@@ -197,7 +188,6 @@ export class EstoqueService {
     return this.produtos.obter(dto.idProduto);
   }
 
-  /** Histórico unificado: entradas, trocas e ajustes (mv_estoque_historico) + saídas por venda (mv_vendas_movimento). */
   async movimentacoes(filtro: ListarMovimentacoesDto): Promise<Paginado<Movimentacao>> {
     const filtrosHistorico: string[] = ['h.estornado = 0'];
     const filtrosVenda: string[] = ['m.estornado = 0', `m.modo_venda = ${MODO_VENDA.PRODUTO}`];
@@ -307,7 +297,6 @@ export class EstoqueService {
     return linha.nome_fornecedor ?? '';
   }
 
-  /** Próximo nº de nota no padrão do desktop: 8 dígitos sequenciais (00002191). */
   private async proximoNumeroNota(manager: EntityManager): Promise<string> {
     const [{ ultimo }] = (await manager.query(
       "SELECT MAX(CAST(numerodanota AS UNSIGNED)) AS ultimo FROM mv_estoque_historico WHERE numerodanota REGEXP '^[0-9]+$'",

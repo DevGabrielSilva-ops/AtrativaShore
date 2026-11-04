@@ -3,24 +3,10 @@ import type { DataSource, EntityManager } from 'typeorm';
 import { NAO, ORIGEM_FINANCEIRO } from '../common/constantes/legado.js';
 import { type Centavos, formatarReais, paraCentavos, paraReais } from '../common/utils/dinheiro.js';
 
-/**
- * Limite de compras no carnê por cliente.
- *
- * O limite vale para o total de parcelas EM ABERTO do cliente (não pagas e
- * não estornadas). Pagar parcelas libera o limite na mesma hora, porque o
- * saldo é sempre recalculado a partir de mv_financeiro.
- *
- * De onde vem o limite, nesta ordem:
- *  1. MANUAL: cad_clientes.limite_carne preenchido (exceção por cliente);
- *  2. RENDA:  faixa salarial × CARNE_LIMITE_PERCENTUAL_RENDA %;
- *  3. PADRAO: CARNE_LIMITE_PADRAO, para quem não tem renda cadastrada.
- */
 export type OrigemLimiteCarne = 'MANUAL' | 'RENDA' | 'PADRAO';
 
 export interface RegraLimiteCarne {
-  /** Percentual da faixa salarial (ex.: 50 = metade da renda). */
   percentualRenda: number;
-  /** Limite em reais para clientes sem faixa salarial. */
   limitePadrao: number;
 }
 
@@ -47,7 +33,6 @@ export function calcularLimiteCarne(
     return { limite: paraCentavos(cliente.limiteCarne), origem: 'MANUAL' };
   }
   if (cliente.faixaSalarial && cliente.faixaSalarial > 0) {
-    // Arredonda para baixo: o limite nunca passa do percentual da renda.
     return { limite: Math.floor((paraCentavos(cliente.faixaSalarial) * regra.percentualRenda) / 100), origem: 'RENDA' };
   }
   return { limite: paraCentavos(regra.limitePadrao), origem: 'PADRAO' };
@@ -59,11 +44,6 @@ function numeroOuNulo(valor: unknown): number | null {
   return Number.isFinite(numero) ? numero : null;
 }
 
-/**
- * Consulta limite, valor em aberto e disponível.
- * Com `bloquear`, trava as parcelas em aberto do cliente (FOR UPDATE) para
- * que duas vendas no carnê simultâneas não ultrapassem o limite juntas.
- */
 export async function consultarCreditoCarne(
   executor: DataSource | EntityManager,
   idCliente: number,
@@ -95,7 +75,6 @@ export async function consultarCreditoCarne(
   };
 }
 
-/** Recusa (409) a venda se o valor no carnê passar do disponível. */
 export function garantirLimiteCarne(credito: CreditoCarne, valorCarne: Centavos, nomeCliente: string | null): void {
   const disponivel = paraCentavos(credito.disponivel);
   if (valorCarne <= disponivel) return;

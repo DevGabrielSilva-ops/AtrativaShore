@@ -1,11 +1,3 @@
-/**
- * Leitura e validação das variáveis de ambiente.
- *
- * Toda configuração da API vem do ambiente (.env em desenvolvimento).
- * Nenhuma credencial fica no código. A validação roda na inicialização:
- * se faltar algo obrigatório, a API não sobe e informa o que está errado.
- */
-
 export interface Configuracao {
   ambiente: string;
   porta: number;
@@ -35,7 +27,6 @@ export interface Configuracao {
   };
   estoqueBaixoLimitePadrao: number;
   carneMaxParcelas: number;
-  /** Limite de compras no carnê (ver carnes/limite-carne.ts). */
   carneLimite: {
     percentualRenda: number;
     limitePadrao: number;
@@ -156,7 +147,6 @@ export function carregarConfiguracao(env: Ambiente = process.env): Configuracao 
   };
 }
 
-/** Usado pelo ConfigModule: falha cedo se o ambiente estiver inválido. */
 export function validarAmbiente(env: Record<string, unknown>): Record<string, unknown> {
   carregarConfiguracao(env as Ambiente);
   return env;

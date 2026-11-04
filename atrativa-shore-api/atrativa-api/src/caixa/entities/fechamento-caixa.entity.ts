@@ -1,7 +1,6 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import { dataLegadaTransformer, dinheiroTransformer } from '../../common/utils/transformadores.js';
 
-/** mv_fechamento — abertura e fechamento de caixa por terminal e turno. */
 @Entity('mv_fechamento')
 export class FechamentoCaixa {
   @PrimaryGeneratedColumn({ name: 'id', type: 'int', unsigned: true })
@@ -34,7 +33,6 @@ export class FechamentoCaixa {
   @Column({ name: 'terminal', type: 'char', length: 2, nullable: true })
   terminal: string | null;
 
-  /** 'F' = fechado; 'P' = aberto (inferido). */
   @Column({ name: 'status_caixa', type: 'char', length: 1, nullable: true })
   status: string | null;
 }

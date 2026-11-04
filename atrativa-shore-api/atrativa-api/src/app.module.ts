@@ -37,7 +37,6 @@ import { VendasModule } from './vendas/vendas.module.js';
   ],
   controllers: [SaudeController],
   providers: [
-    // Ordem dos guards: primeiro autentica (JWT), depois confere o perfil.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: AdministradorGuard },
     { provide: APP_INTERCEPTOR, useClass: RespostaInterceptor },

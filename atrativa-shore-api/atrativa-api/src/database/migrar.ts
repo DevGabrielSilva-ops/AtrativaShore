@@ -1,10 +1,3 @@
-/**
- * Execução manual das migrations (nunca automática).
- *
- *   npm run migration:show     lista o que já foi e o que falta aplicar
- *   npm run migration:run      aplica as pendentes (faça backup antes!)
- *   npm run migration:revert   desfaz a última aplicada
- */
 import { DataSource } from 'typeorm';
 import { carregarConfiguracao } from '../config/configuracao.js';
 import { opcoesBanco } from './opcoes-banco.js';
@@ -12,9 +5,7 @@ import { opcoesBanco } from './opcoes-banco.js';
 async function principal(): Promise<void> {
   try {
     process.loadEnvFile('.env');
-  } catch {
-    // Sem .env: usa as variáveis já presentes no ambiente.
-  }
+  } catch {}
 
   const comando = process.argv[2];
   if (!['show', 'run', 'revert'].includes(comando ?? '')) {

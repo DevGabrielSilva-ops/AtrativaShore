@@ -1,7 +1,6 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 import { numeroCasas } from '../../common/utils/transformadores.js';
 
-/** cad_empresa — dados da loja (o banco tem uma única empresa). */
 @Entity('cad_empresa')
 export class Empresa {
   @PrimaryGeneratedColumn({ name: 'id', type: 'int', unsigned: true })
@@ -46,7 +45,6 @@ export class Empresa {
   @Column({ name: 'site', type: 'varchar', length: 200, nullable: true })
   site: string | null;
 
-  /** Mensagem impressa no cupom/carnê. */
   @Column({ name: 'mensagem', type: 'varchar', length: 200, nullable: true })
   mensagem: string | null;
 
@@ -56,14 +54,12 @@ export class Empresa {
   @Column({ name: 'qtd_turnos', type: 'char', length: 1, default: '1' })
   qtdTurnos: string;
 
-  /** Desconto máximo permitido (%) — nulo = sem limite. */
   @Column({ name: 'max_desc', type: 'float', nullable: true, transformer: numeroCasas(2) })
   maxDesconto: number | null;
 
   @Column({ name: 'fracionado', type: 'tinyint', nullable: true })
   fracionado: number | null;
 
-  /** Chave de licença do sistema legado: nunca é exposta pela API. */
   @Column({ name: 'chave_liberacao', type: 'varchar', length: 21, nullable: true, select: false })
   chaveLiberacao?: string | null;
 

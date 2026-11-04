@@ -3,7 +3,6 @@ import { CriarApiCredencial1762300000002 } from './1762300000002-CriarApiCredenc
 import { AdicionarVrPix1762300000003 } from './1762300000003-AdicionarVrPix.js';
 import { AdicionarLimiteCarne1762300000004 } from './1762300000004-AdicionarLimiteCarne.js';
 
-/** Migrations autorizadas, em ordem. Nenhuma apaga dados existentes do legado. */
 export const MIGRATIONS = [
   ConverterTabelasInnodb1762300000001,
   CriarApiCredencial1762300000002,

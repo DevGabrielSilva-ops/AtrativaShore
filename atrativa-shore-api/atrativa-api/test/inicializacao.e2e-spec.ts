@@ -1,8 +1,3 @@
-/**
- * Sobe a aplicação inteira (AppModule real: DI, guards, pipes, filtro,
- * interceptor e Swagger) trocando apenas a conexão MySQL por uma falsa.
- * Não precisa de banco; confere a "fiação" da API e o contrato HTTP básico.
- */
 import { type INestApplication, ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { Test } from '@nestjs/testing';
@@ -21,7 +16,6 @@ const bancoFalso = {
   entityMetadatas: [],
   manager: {},
   query: async (sql: string) => {
-    // Simula um banco já migrado (InnoDB, api_credencial e vr_pix existentes).
     if (sql.includes('ENGINE AS motor')) return [];
     if (sql.includes('information_schema')) return [{ 1: 1 }];
     return [];
