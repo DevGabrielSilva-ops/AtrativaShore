@@ -23,7 +23,12 @@
     "migration:show": "npm run build && node dist/database/migrar.js show",
     "migration:run": "npm run build && node dist/database/migrar.js run",
     "migration:revert": "npm run build && node dist/database/migrar.js revert",
-    "db:converter-dump": "node scripts/converter-dump-mysql8.mjs"
+    "db:converter-dump": "node scripts/converter-dump-mysql8.mjs",
+    "plataforma:migrar": "npm run build && node dist/database/cli.js plataforma-migrar",
+    "empresas:migrar": "npm run build && node dist/database/cli.js empresas-migrar",
+    "plataforma:superadmin": "npm run build && node dist/database/cli.js superadmin",
+    "plataforma:importar": "npm run build && node dist/database/cli.js importar",
+    "modelo:empresa": "node scripts/gerar-modelo-empresa.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",
