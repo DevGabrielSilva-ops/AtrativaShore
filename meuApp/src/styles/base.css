@@ -90,7 +90,6 @@ svg {
   font-size: var(--texto-sm);
 }
 
-/* Utilitários de layout das páginas */
 .pilha {
   display: flex;
   flex-direction: column;

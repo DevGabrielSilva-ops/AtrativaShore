@@ -23,7 +23,6 @@ interface ValorAuth {
 const CHAVE = 'atrativa.sessao';
 const AuthContexto = createContext<ValorAuth | null>(null);
 
-/** Lê a sessão salva (local = "manter conectado"; session = só esta aba). */
 function lerSessao(): Sessao | null {
   for (const armazenamento of [sessionStorage, localStorage]) {
     try {
@@ -32,9 +31,7 @@ function lerSessao(): Sessao | null {
       const sessao = JSON.parse(bruto) as Sessao;
       if (sessao?.token && Date.parse(sessao.expiresAt) > Date.now()) return sessao;
       armazenamento.removeItem(CHAVE);
-    } catch {
-      // armazenamento indisponível ou corrompido
-    }
+    } catch {}
   }
   return null;
 }
@@ -43,9 +40,7 @@ function limparSessao(): void {
   for (const armazenamento of [sessionStorage, localStorage]) {
     try {
       armazenamento.removeItem(CHAVE);
-    } catch {
-      // ignora
-    }
+    } catch {}
   }
 }
 
@@ -66,12 +61,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setMotivoSaida(motivo);
   }, []);
 
-  // Qualquer 401 da API (token expirado ou usuário removido) encerra a sessão.
   useEffect(() => {
     quandoSessaoExpirar(() => sair('expirada'));
   }, [sair]);
 
-  // Confere a sessão salva com o backend ao abrir o sistema.
   useEffect(() => {
     if (!sessao || !carregando) return;
     authService
@@ -81,7 +74,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setCarregando(false));
   }, [sessao, carregando, sair]);
 
-  // Encerra a sessão no instante em que o token expira.
   useEffect(() => {
     window.clearTimeout(temporizador.current);
     if (!sessao) return;
@@ -96,9 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     limparSessao();
     try {
       (manterConectado ? localStorage : sessionStorage).setItem(CHAVE, JSON.stringify(nova));
-    } catch {
-      // sem armazenamento: a sessão vale até recarregar a página
-    }
+    } catch {}
     definirToken(nova.token);
     setMotivoSaida(null);
     setSessao(nova);
@@ -119,7 +109,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return <AuthContexto.Provider value={valor}>{children}</AuthContexto.Provider>;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth(): ValorAuth {
   const contexto = useContext(AuthContexto);
   if (!contexto) throw new Error('useAuth precisa estar dentro de <AuthProvider>');

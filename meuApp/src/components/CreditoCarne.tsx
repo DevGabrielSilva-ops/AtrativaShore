@@ -5,11 +5,6 @@ import { formatarMoeda } from '../utils/formatar';
 import { Badge } from './ui/Estados';
 import { Skeleton } from './ui/Spinner';
 
-/**
- * Limite do carnê do cliente (GET /clientes/:id/credito-carne): quanto já deve
- * em parcelas abertas e quanto ainda pode comprar. `versao` refaz a consulta
- * (ex.: depois de receber parcelas).
- */
 export function CreditoCarneCliente({ idCliente, versao = 0 }: { idCliente: number; versao?: number }) {
   const credito = useRequisicao(() => clienteService.creditoCarne(idCliente), [idCliente, versao]);
   const c = credito.dados;

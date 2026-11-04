@@ -73,7 +73,6 @@ export default function Clientes() {
   const [parametros, setParametros] = useSearchParams();
   const [busca, setBusca] = useState(parametros.get('busca') ?? '');
   const buscaAtrasada = useAtrasado(busca);
-  // ?novo=1 (atalho do PDV) já abre o cadastro.
   const [editando, setEditando] = useState<Cliente | 'novo' | null>(() => (parametros.get('novo') === '1' ? 'novo' : null));
   const [vendo, setVendo] = useState<Cliente | null>(null);
 
@@ -84,7 +83,6 @@ export default function Clientes() {
     [buscaAtrasada, pagina],
   );
 
-  // Tira o ?novo=1 do endereço para o cadastro não reabrir ao recarregar.
   const pedidoNovo = parametros.get('novo') === '1';
   useEffect(() => {
     if (pedidoNovo) setParametros({}, { replace: true });
@@ -264,7 +262,6 @@ function FormularioCliente({
       ie: conversor(valores.ie),
       dataAniversario: conversor(valores.dataAniversario),
       faixaSalarial: valores.faixaSalarial.trim() ? lerNumero(valores.faixaSalarial) : cliente ? null : undefined,
-      // Vazio = limite calculado pela renda.
       limiteCarne: valores.limiteCarne.trim() ? lerNumero(valores.limiteCarne) : cliente ? null : undefined,
       telefone: conversor(valores.telefone),
       celular: conversor(valores.celular),

@@ -116,7 +116,6 @@ function FormularioEmpresa({ empresa, aoCancelar, aoSalvar }: { empresa: TipoEmp
   }, []);
 
   const salvar = useAcao(async () => {
-    // Só envia o que mudou (PATCH).
     const original = paraFormulario(empresa);
     const dados: Record<string, unknown> = {};
     for (const chave of CAMPOS_TEXTO) {

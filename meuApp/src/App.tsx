@@ -29,7 +29,6 @@ function Carregando() {
   );
 }
 
-/** Rotas privadas: sem sessão válida, vai para o login e volta para onde estava depois. */
 function RotaPrivada({ children }: { children: ReactNode }) {
   const { autenticado, carregando } = useAuth();
   const local = useLocation();
@@ -80,7 +79,6 @@ export default function App() {
                 <Route path="relatorios" element={<Relatorios />} />
                 <Route path="perfil" element={<Perfil />} />
                 <Route path="configuracoes" element={<Configuracoes />} />
-                {/* Endereços antigos do frontend */}
                 <Route path="menu" element={<Navigate to="/" replace />} />
                 <Route path="carnês" element={<Navigate to="/carnes" replace />} />
                 <Route path="*" element={<NaoEncontrada />} />

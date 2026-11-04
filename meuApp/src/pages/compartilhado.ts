@@ -1,6 +1,5 @@
 import type { CreditoCarne, FormaPagamento, FormasValores, MotivoAjuste, TipoMovimentacao } from '../types/api';
 
-/** Rótulos e cores fixos (paleta validada em tokens.css: a cor segue a forma, nunca a posição). */
 export const ROTULOS_FORMAS: Record<keyof FormasValores, string> = {
   dinheiro: 'Dinheiro',
   pix: 'Pix',
@@ -46,7 +45,6 @@ export const UFS = [
   'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
 ];
 
-/** De onde vem o limite do carnê do cliente, em texto. */
 export function origemLimiteCarne(credito: CreditoCarne): string {
   if (credito.origem === 'MANUAL') return 'definido no cadastro';
   if (credito.origem === 'RENDA') return `${credito.percentualRenda}% da renda`;

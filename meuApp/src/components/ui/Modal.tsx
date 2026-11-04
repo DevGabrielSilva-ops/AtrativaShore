@@ -12,10 +12,8 @@ interface Props {
   tamanho?: 'sm' | 'md' | 'lg';
 }
 
-/** Pilha de modais abertos: só o do topo responde a Esc/Tab (ex.: confirmação sobre um formulário). */
 const pilha: string[] = [];
 
-/** Diálogo modal acessível: foco preso, Esc fecha, foco volta ao elemento de origem. */
 export function Modal({ aberto, titulo, descricao, aoFechar, children, rodape, tamanho = 'md' }: Props) {
   const idTitulo = useId();
   const caixa = useRef<HTMLDivElement>(null);

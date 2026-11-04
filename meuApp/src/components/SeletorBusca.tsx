@@ -8,7 +8,6 @@ interface Props<T> {
   rotulo: string;
   placeholder?: string;
   buscar: (termo: string) => Promise<T[]>;
-  /** Enter com o texto digitado (ex.: código de barras lido pelo leitor). Retorna o item ou null. */
   buscarExato?: (termo: string) => Promise<T | null>;
   chave: (item: T) => string | number;
   renderizar: (item: T) => ReactNode;
@@ -18,7 +17,6 @@ interface Props<T> {
   rotuloVisivel?: boolean;
 }
 
-/** Campo de busca com lista de sugestões (combobox acessível por teclado). */
 export function SeletorBusca<T>({
   rotulo,
   placeholder,
@@ -40,7 +38,6 @@ export function SeletorBusca<T>({
   const atrasado = useAtrasado(texto, 250);
   const termo = atrasado.trim();
   const pesquisar = termo.length >= minimo;
-  // Só vale o resultado do termo atual; enquanto ele não chega, está carregando.
   const atualizado = pesquisar && resultado?.termo === termo;
   const itens = atualizado ? resultado.itens : [];
   const erro = atualizado ? resultado.erro : null;
@@ -98,7 +95,6 @@ export function SeletorBusca<T>({
       evento.preventDefault();
       const digitado = texto.trim();
       if (!digitado) return;
-      // Leitor de código de barras: tenta o código exato antes da lista.
       if (buscarExato && /^\d{4,}$/.test(digitado)) {
         setBuscandoExato(true);
         try {
@@ -107,9 +103,7 @@ export function SeletorBusca<T>({
             escolher(exato);
             return;
           }
-        } catch {
-          // não achou pelo código: segue para a lista
-        } finally {
+        } catch {} finally {
           setBuscandoExato(false);
         }
       }

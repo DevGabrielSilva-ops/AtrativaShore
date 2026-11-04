@@ -36,7 +36,6 @@ export function AppLayout() {
 
   const atual = itemDaRota(local.pathname);
 
-  // Fecha a gaveta (celular) e o menu do usuário ao navegar.
   const [rotaAnterior, setRotaAnterior] = useState(local.pathname);
   if (rotaAnterior !== local.pathname) {
     setRotaAnterior(local.pathname);

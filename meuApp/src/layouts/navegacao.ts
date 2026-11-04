@@ -19,7 +19,6 @@ export interface ItemMenu {
   caminho: string;
   titulo: string;
   icone: IconType;
-  /** Nome do grupo no breadcrumb. */
   grupo: string;
 }
 
@@ -28,7 +27,6 @@ export interface GrupoMenu {
   itens: ItemMenu[];
 }
 
-/** Menu organizado só com módulos que existem no backend. */
 export const MENU: GrupoMenu[] = [
   {
     titulo: 'Gerenciamento',
@@ -65,7 +63,6 @@ export const MENU: GrupoMenu[] = [
 
 const TODOS = MENU.flatMap((grupo) => grupo.itens);
 
-/** Item do menu correspondente à rota atual (o mais específico). */
 export function itemDaRota(caminho: string): ItemMenu | undefined {
   return [...TODOS]
     .sort((a, b) => b.caminho.length - a.caminho.length)

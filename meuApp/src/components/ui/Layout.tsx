@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { IoSearch } from 'react-icons/io5';
 import { Skeleton } from './Spinner';
 
-/** Cabeçalho de página: título, descrição curta e ações à direita. */
 export function PageHeader({ titulo, descricao, acoes }: { titulo: string; descricao?: string; acoes?: ReactNode }) {
   return (
     <div className="page-header">
@@ -15,7 +14,6 @@ export function PageHeader({ titulo, descricao, acoes }: { titulo: string; descr
   );
 }
 
-/** Painel com título opcional. É o único "cartão" do sistema. */
 export function Painel({
   titulo,
   descricao,
@@ -47,7 +45,6 @@ export function Painel({
   );
 }
 
-/** Indicador numérico. `nota` traz contexto (variação, comparação) em texto, nunca só em cor. */
 export function Indicador({
   rotulo,
   valor,
@@ -123,7 +120,6 @@ export function Abas<T extends string>({
   );
 }
 
-/** Lista "rótulo: valor" para telas de detalhe. */
 export function Detalhes({ itens }: { itens: Array<{ rotulo: string; valor: ReactNode }> }) {
   return (
     <dl className="detalhes">

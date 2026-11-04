@@ -1,14 +1,3 @@
-/**
- * Cliente HTTP único da aplicação.
- *
- * - URL base em VITE_API_URL;
- * - envia o JWT em "Authorization: Bearer";
- * - desembrulha o envelope { data } das respostas (listas mantêm { data, meta });
- * - converte erros no formato { statusCode, message } em ApiError;
- * - em 401 fora do login, avisa a aplicação para encerrar a sessão;
- * - GETs idênticos em andamento são compartilhados (evita requisição duplicada).
- */
-
 const URL_BASE = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1').replace(/\/+$/, '');
 
 export class ApiError extends Error {
@@ -30,7 +19,6 @@ interface OpcoesRequisicao {
   corpo?: unknown;
   parametros?: Parametros;
   sinal?: AbortSignal;
-  /** Login usa 401 para "senha errada": não deve derrubar a sessão. */
   ignorarSessaoExpirada?: boolean;
 }
 
@@ -98,7 +86,6 @@ async function executar<T>(caminho: string, opcoes: OpcoesRequisicao): Promise<T
     throw new ApiError(resposta.status, mensagensDoCorpo(corpo, resposta.status));
   }
 
-  // Listas paginadas ficam com { data, meta, ... }; o resto é desembrulhado.
   if (corpo && typeof corpo === 'object' && 'data' in corpo && !('meta' in corpo)) {
     return (corpo as { data: T }).data;
   }

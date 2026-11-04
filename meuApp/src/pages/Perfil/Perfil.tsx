@@ -13,7 +13,6 @@ export default function Perfil() {
   const { usuario, sair } = useAuth();
   const { confirmar } = useFeedback();
   const navegar = useNavigate();
-  // Consulta o backend para mostrar o perfil atual (não só o salvo no login).
   const eu = useRequisicao(() => authService.me(), []);
   const empresa = useRequisicao(() => empresaService.obter(), []);
   const u = eu.dados ?? usuario;

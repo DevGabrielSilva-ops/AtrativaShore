@@ -36,7 +36,6 @@ export default function Estoque() {
   const [ajuste, setAjuste] = useState<Produto | 'novo' | null>(null);
   const [versao, setVersao] = useState(0);
 
-  // Atalho vindo da tela de produtos: /estoque?produto=ID abre a entrada com o produto.
   useEffect(() => {
     const id = Number(parametros.get('produto'));
     if (!id) return;

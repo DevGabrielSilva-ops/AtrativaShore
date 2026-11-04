@@ -8,18 +8,12 @@ interface EstadoRequisicao<T> {
   recarregar: () => void;
 }
 
-/**
- * Executa uma consulta à API e mantém dados/carregando/erro.
- * Refaz a consulta quando `dependencias` mudam; descarta respostas antigas
- * (se o filtro mudar no meio, só a última resposta é aplicada).
- */
 export function useRequisicao<T>(
   buscar: () => Promise<T>,
   dependencias: unknown[],
   habilitado = true,
 ): EstadoRequisicao<T> {
   const [versao, setVersao] = useState(0);
-  // Identifica a consulta atual; "carregando" é derivado de qual consulta já respondeu.
   const chave = `${versao}|${JSON.stringify(dependencias)}`;
   const [dados, setDados] = useState<T | null>(null);
   const [concluida, setConcluida] = useState<{ chave: string; erro: string | null } | null>(null);
@@ -41,7 +35,6 @@ export function useRequisicao<T>(
       .catch((falha: unknown) => {
         if (atual) setConcluida({ chave, erro: mensagemErro(falha) });
       });
-    // Resposta de uma consulta substituída é descartada.
     return () => {
       atual = false;
     };
@@ -53,7 +46,6 @@ export function useRequisicao<T>(
   return { dados, carregando, erro, recarregar };
 }
 
-/** Valor que só muda depois de `atraso` ms sem alterações (busca enquanto digita). */
 export function useAtrasado<T>(valor: T, atraso = 350): T {
   const [atrasado, setAtrasado] = useState(valor);
   useEffect(() => {
@@ -63,7 +55,6 @@ export function useAtrasado<T>(valor: T, atraso = 350): T {
   return atrasado;
 }
 
-/** Envolve uma ação (salvar, excluir) impedindo envio duplicado. */
 export function useAcao<A extends unknown[], R>(acao: (...args: A) => Promise<R>) {
   const [executando, setExecutando] = useState(false);
   const travado = useRef(false);

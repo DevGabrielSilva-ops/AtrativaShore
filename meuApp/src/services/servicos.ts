@@ -1,7 +1,3 @@
-/**
- * Um objeto por módulo do backend. Cada função corresponde a um endpoint
- * real (ver docs/FRONTEND_INTEGRATION.md e o Swagger em /api/v1/docs).
- */
 import type {
   BaixasCarne,
   CaixaComResumo,

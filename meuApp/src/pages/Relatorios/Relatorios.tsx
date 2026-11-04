@@ -45,7 +45,6 @@ const ABAS = [
 ] as const;
 type IdAba = (typeof ABAS)[number]['id'];
 
-/** Busca todas as páginas (até 50) para exportar o relatório completo, não só a página visível. */
 async function todasAsPaginas<T>(buscar: (pagina: number) => Promise<Paginado<T>>): Promise<T[]> {
   const primeira = await buscar(1);
   const resto = await Promise.all(
@@ -93,7 +92,6 @@ export default function Relatorios() {
   );
 }
 
-/** Painel padrão de relatório paginado: tabela + paginação + exportar. */
 function TabelaRelatorio<T>({
   titulo,
   rotulo,
@@ -156,8 +154,6 @@ function TabelaRelatorio<T>({
   );
 }
 
-
-// ------------------------------------------------------------------ vendas
 function RelVendas({ periodo }: { periodo: Periodo }) {
   const [pagina, setPagina] = usePagina([periodo.inicio, periodo.fim]);
   const estado = useRequisicao(() => relatorioService.vendasPeriodo({ ...periodo, page: pagina, limit: 25 }), [periodo.inicio, periodo.fim, pagina]);
@@ -200,7 +196,6 @@ function RelVendas({ periodo }: { periodo: Periodo }) {
   );
 }
 
-// ------------------------------------------------------------------ faturamento
 function RelFaturamento({ periodo }: { periodo: Periodo }) {
   const [agrupar, setAgrupar] = useState<'dia' | 'mes'>('dia');
   const estado = useRequisicao(() => relatorioService.faturamento({ ...periodo, agrupar }), [periodo.inicio, periodo.fim, agrupar]);
@@ -279,7 +274,6 @@ function RelFaturamento({ periodo }: { periodo: Periodo }) {
   );
 }
 
-// ------------------------------------------------------------------ desempenho
 function RelDesempenho({ periodo }: { periodo: Periodo }) {
   const painel = useRequisicao(() => relatorioService.dashboard(periodo), [periodo.inicio, periodo.fim]);
   const formas = useRequisicao(() => relatorioService.formasPagamento(periodo), [periodo.inicio, periodo.fim]);
@@ -340,7 +334,6 @@ function RelDesempenho({ periodo }: { periodo: Periodo }) {
   );
 }
 
-// ------------------------------------------------------------------ mais vendidos
 function RelMaisVendidos({ periodo }: { periodo: Periodo }) {
   const [ordenarPor, setOrdenarPor] = useState<'quantidade' | 'valor'>('quantidade');
   const estado = useRequisicao(() => relatorioService.maisVendidos({ ...periodo, limite: 30, ordenarPor }), [periodo.inicio, periodo.fim, ordenarPor]);
@@ -404,7 +397,6 @@ function RelMaisVendidos({ periodo }: { periodo: Periodo }) {
   );
 }
 
-// ------------------------------------------------------------------ por cliente
 function RelPorCliente({ periodo }: { periodo: Periodo }) {
   const [incluir, setIncluir] = useState(false);
   const estado = useRequisicao(
@@ -451,7 +443,6 @@ function RelPorCliente({ periodo }: { periodo: Periodo }) {
   );
 }
 
-// ------------------------------------------------------------------ débito
 function RelDebito() {
   const [pagina, setPagina] = useState(1);
   const estado = useRequisicao(() => relatorioService.clientesDebito({ page: pagina, limit: 25 }), [pagina]);
@@ -494,7 +485,6 @@ function RelDebito() {
   );
 }
 
-// ------------------------------------------------------------------ baixas
 function RelBaixas({ periodo }: { periodo: Periodo }) {
   const [pagina, setPagina] = usePagina([periodo.inicio, periodo.fim]);
   const estado = useRequisicao(() => relatorioService.baixasCarne({ ...periodo, page: pagina, limit: 25 }), [periodo.inicio, periodo.fim, pagina]);
@@ -540,7 +530,6 @@ function RelBaixas({ periodo }: { periodo: Periodo }) {
   );
 }
 
-// ------------------------------------------------------------------ estoque baixo
 function RelEstoqueBaixo() {
   const [pagina, setPagina] = useState(1);
   const estado = useRequisicao(() => relatorioService.estoqueBaixo({ page: pagina, limit: 25 }), [pagina]);
@@ -575,7 +564,6 @@ function RelEstoqueBaixo() {
   );
 }
 
-// ------------------------------------------------------------------ mercadorias
 function RelMercadorias({ periodo }: { periodo: Periodo }) {
   const [pagina, setPagina] = usePagina([periodo.inicio, periodo.fim]);
   const estado = useRequisicao(() => relatorioService.mercadorias({ ...periodo, page: pagina, limit: 25 }), [periodo.inicio, periodo.fim, pagina]);
@@ -621,7 +609,6 @@ function RelMercadorias({ periodo }: { periodo: Periodo }) {
   );
 }
 
-// ------------------------------------------------------------------ movimentações
 function RelMovimentacoes({ periodo }: { periodo: Periodo }) {
   const [pagina, setPagina] = usePagina([periodo.inicio, periodo.fim]);
   const estado = useRequisicao(() => relatorioService.movimentacoes({ ...periodo, page: pagina, limit: 25 }), [periodo.inicio, periodo.fim, pagina]);

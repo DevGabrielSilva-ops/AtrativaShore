@@ -18,7 +18,6 @@
   left: 8px;
 }
 
-/* ---------------------------------------------------------------- sidebar */
 .sidebar {
   position: sticky;
   top: 0;
@@ -106,7 +105,6 @@
   color: var(--cor-perigo);
 }
 
-/* ---------------------------------------------------------------- topo */
 .principal {
   display: flex;
   flex-direction: column;

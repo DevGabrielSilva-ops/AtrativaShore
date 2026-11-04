@@ -1,24 +1,16 @@
-/*
- * Tokens do design system Atrativa Shore.
- * A cor da marca vem do logotipo (#592675). Cores de estado são reservadas
- * para estado e sempre acompanham texto ou ícone.
- */
 :root {
-  /* Marca */
   --cor-marca: #592675;
   --cor-marca-forte: #45195c;
   --cor-marca-suave: #f2ecf6;
   --cor-marca-borda: #d9c8e4;
   --cor-marca-grafico: #7a3fa0;
 
-  /* Paleta categórica validada (formas de pagamento), em ordem fixa */
   --serie-dinheiro: #7a3fa0;
   --serie-pix: #14979c;
   --serie-cartao: #c97a1e;
   --serie-carne: #3f6fd6;
   --serie-outros: #7d8a2e;
 
-  /* Neutros */
   --cor-fundo: #f6f5f8;
   --cor-superficie: #ffffff;
   --cor-superficie-2: #faf9fb;
@@ -28,7 +20,6 @@
   --cor-texto-2: #5e5768;
   --cor-texto-3: #6f6878;
 
-  /* Estado */
   --cor-sucesso: #1d7a4c;
   --cor-sucesso-suave: #e7f4ec;
   --cor-aviso: #8a5a00;
@@ -38,7 +29,6 @@
   --cor-info: #1f5fa8;
   --cor-info-suave: #e8f0fa;
 
-  /* Tipografia */
   --fonte: 'Onest', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --texto-xs: 0.75rem;
   --texto-sm: 0.8125rem;
@@ -49,7 +39,6 @@
   --texto-2xl: 2rem;
   --texto-hero: 3rem;
 
-  /* Espaçamento (base 4px) */
   --esp-1: 4px;
   --esp-2: 8px;
   --esp-3: 12px;
@@ -59,13 +48,11 @@
   --esp-8: 32px;
   --esp-10: 40px;
 
-  /* Raios: pequeno para controles, médio para painéis */
   --raio-sm: 6px;
   --raio-md: 10px;
   --raio-lg: 14px;
   --raio-pill: 999px;
 
-  /* Sombras: só em camadas flutuantes */
   --sombra-flutuante: 0 12px 32px rgba(32, 26, 38, 0.14), 0 2px 6px rgba(32, 26, 38, 0.08);
   --sombra-leve: 0 1px 2px rgba(32, 26, 38, 0.06);
 

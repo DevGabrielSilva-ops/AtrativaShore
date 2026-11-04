@@ -11,7 +11,6 @@ const ATALHOS: Array<{ rotulo: string; periodo: () => Periodo }> = [
   { rotulo: '12 meses', periodo: () => ({ inicio: somarDiasIso(hojeIso(), -364), fim: hojeIso() }) },
 ];
 
-/** Atalhos de período + datas livres. Todas as datas vão para a API em AAAA-MM-DD. */
 export function FiltroPeriodo({ periodo, aoMudar }: { periodo: Periodo; aoMudar: (periodo: Periodo) => void }) {
   const ativo = ATALHOS.find((atalho) => {
     const p = atalho.periodo();

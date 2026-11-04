@@ -8,7 +8,6 @@ export interface Coluna<T> {
   render: (linha: T) => ReactNode;
   alinhar?: 'esquerda' | 'direita' | 'centro';
   largura?: string;
-  /** Some em telas pequenas (a primeira coluna nunca some). */
   ocultarNoCelular?: boolean;
 }
 
@@ -26,7 +25,6 @@ interface Props<T> {
   rodape?: ReactNode;
 }
 
-/** Tabela padrão: carregando (skeleton), erro, vazio e linhas clicáveis acessíveis por teclado. */
 export function DataTable<T>({
   colunas,
   linhas,

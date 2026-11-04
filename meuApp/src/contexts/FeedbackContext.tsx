@@ -31,7 +31,6 @@ const ICONES = {
   info: IoInformationCircle,
 };
 
-/** Notificações (toasts) e diálogo de confirmação, no lugar de alert/confirm do navegador. */
 export function FeedbackProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [pergunta, setPergunta] = useState<(OpcoesConfirmacao & { resolver: (sim: boolean) => void }) | null>(null);
@@ -99,7 +98,6 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export function useFeedback(): ValorFeedback {
   const contexto = useContext(FeedbackContexto);
   if (!contexto) throw new Error('useFeedback precisa estar dentro de <FeedbackProvider>');

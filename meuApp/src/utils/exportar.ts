@@ -1,7 +1,3 @@
-/**
- * Exportação feita no navegador a partir dos dados já recebidos da API.
- * CSV com ";" e BOM UTF-8, que o Excel em português abre direto com acentos.
- */
 export interface ColunaExportacao<T> {
   titulo: string;
   valor: (linha: T) => string | number | null | undefined;
@@ -29,7 +25,6 @@ export function exportarCsv<T>(nomeArquivo: string, colunas: ColunaExportacao<T>
   URL.revokeObjectURL(url);
 }
 
-/** Imprime a página (o navegador oferece "Salvar como PDF"). */
 export function imprimir(): void {
   window.print();
 }

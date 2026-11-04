@@ -21,14 +21,12 @@ export const formatarInteiro = (valor: number | null | undefined) => (valor == n
 export const formatarVariacao = (valor: number | null | undefined) =>
   valor == null ? null : `${percentual.format(valor)}%`;
 
-/** 'AAAA-MM-DD' → 'DD/MM/AAAA' sem passar por Date (evita erro de fuso). */
 export function formatarData(iso: string | null | undefined): string {
   if (!iso) return '—';
   const [ano, mes, dia] = iso.slice(0, 10).split('-');
   return dia && mes && ano ? `${dia}/${mes}/${ano}` : iso;
 }
 
-/** 'AAAA-MM' → 'mês/AAAA' abreviado. */
 export function formatarMes(iso: string): string {
   const [ano, mes] = iso.split('-').map(Number);
   const nome = new Date(Date.UTC(ano, mes - 1, 15)).toLocaleDateString('pt-BR', { month: 'short', timeZone: 'UTC' });
@@ -49,7 +47,6 @@ export function formatarTelefone(valor: string | null | undefined): string {
   return valor || '—';
 }
 
-/** Data de hoje no fuso do navegador, em 'AAAA-MM-DD'. */
 export function hojeIso(): string {
   const agora = new Date();
   const local = new Date(agora.getTime() - agora.getTimezoneOffset() * 60_000);
@@ -65,7 +62,6 @@ export function somarDiasIso(iso: string, dias: number): string {
   return new Date(Date.UTC(ano, mes - 1, dia + dias)).toISOString().slice(0, 10);
 }
 
-/** Texto digitado em pt-BR ("1.234,56" ou "12,5") → número. */
 export function lerNumero(texto: string): number | null {
   const limpo = texto.trim().replace(/\s/g, '').replace(/R\$/i, '');
   if (!limpo) return null;
@@ -74,13 +70,11 @@ export function lerNumero(texto: string): number | null {
   return Number.isFinite(valor) ? valor : null;
 }
 
-/** Número → texto editável em pt-BR ("12,50"). */
 export function numeroParaCampo(valor: number | null | undefined, casas = 2): string {
   if (valor == null) return '';
   return valor.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas, useGrouping: false });
 }
 
-/** Soma em centavos para não acumular erro de ponto flutuante na tela. */
 export function somarReais(valores: number[]): number {
   return valores.reduce((total, valor) => total + Math.round(valor * 100), 0) / 100;
 }

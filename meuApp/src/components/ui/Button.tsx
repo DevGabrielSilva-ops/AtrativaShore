@@ -8,7 +8,6 @@ interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   tamanho?: 'sm' | 'md';
   carregando?: boolean;
   icone?: ReactNode;
-  /** Botão só com ícone: o texto vira o rótulo acessível. */
   somenteIcone?: boolean;
 }
 

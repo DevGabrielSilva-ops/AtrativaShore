@@ -19,4 +19,16 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    files: ["**/*.{ts,tsx}"],
+    rules: {
+      "no-empty": ["error", { allowEmptyCatch: true }],
+    },
+  },
+  {
+    files: ["src/contexts/**/*.tsx"],
+    rules: {
+      "react-refresh/only-export-components": ["error", { allowConstantExport: true, allowExportNames: ["useAuth", "useFeedback"] }],
+    },
+  },
 ])

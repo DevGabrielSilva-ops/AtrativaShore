@@ -30,7 +30,6 @@ export default function Carnes() {
   const devedores = useRequisicao(() => relatorioService.clientesDebito({ page: pagina, limit: 12 }), [pagina]);
   const [cliente, setCliente] = useState<ClienteSelecionado | null>(null);
   const [situacao, setSituacao] = useState<'ABERTA' | 'PAGA' | 'TODAS'>('ABERTA');
-  // Trocar de cliente ou de filtro limpa a seleção.
   const [selecionadas, setSelecionadas] = useEstadoReiniciado<ParcelaCarne[]>([], [cliente?.id, situacao]);
   const [recebendo, setRecebendo] = useState<ParcelaCarne[] | null>(null);
   const [recibo, setRecibo] = useState<ResultadoBaixa | null>(null);

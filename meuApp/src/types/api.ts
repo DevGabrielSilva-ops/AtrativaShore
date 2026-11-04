@@ -1,9 +1,3 @@
-/**
- * Tipos das respostas da API (espelham os services do backend NestJS em
- * atrativa-shore-api/atrativa-api/src). Não invente campos aqui: se a API
- * mudar, ajuste a partir do Swagger (/api/v1/docs).
- */
-
 export interface Meta {
   page: number;
   limit: number;
@@ -23,7 +17,6 @@ export interface Periodo {
 
 export type FormaPagamento = 'DINHEIRO' | 'PIX' | 'CARTAO' | 'CARNE';
 
-// ------------------------------------------------------------------ auth
 export interface UsuarioAutenticado {
   id: number;
   login: string;
@@ -39,7 +32,6 @@ export interface RespostaLogin {
   usuario: UsuarioAutenticado;
 }
 
-// ------------------------------------------------------------------ empresa
 export interface Empresa {
   id: number;
   nome: string | null;
@@ -62,7 +54,6 @@ export interface Empresa {
   fracionado: number | null;
 }
 
-// ------------------------------------------------------------------ clientes
 export interface Cliente {
   id: number;
   nome: string | null;
@@ -81,11 +72,9 @@ export interface Cliente {
   dataAniversario: string | null;
   faixaSalarial: number | null;
   informacoesAdicionais: string | null;
-  /** Limite manual do carnê; null = calculado pela renda. */
   limiteCarne: number | null;
 }
 
-/** GET /clientes/:id/credito-carne */
 export interface CreditoCarne {
   idCliente: number;
   limite: number;
@@ -98,7 +87,6 @@ export interface CreditoCarne {
 
 export type ClienteEntrada = Partial<Omit<Cliente, 'id' | 'codigo'>> & { nome: string };
 
-// ------------------------------------------------------------------ fornecedores
 export interface Fornecedor {
   id: number;
   nome: string | null;
@@ -116,7 +104,6 @@ export interface Fornecedor {
 
 export type FornecedorEntrada = Partial<Omit<Fornecedor, 'id'>> & { nome: string };
 
-// ------------------------------------------------------------------ produtos
 export interface Produto {
   id: number;
   nome: string | null;
@@ -152,7 +139,6 @@ export interface ProdutoTipo {
   nome: string | null;
 }
 
-// ------------------------------------------------------------------ estoque
 export type TipoMovimentacao = 'ENTRADA' | 'TROCA' | 'AJUSTE_ENTRADA' | 'AJUSTE_SAIDA' | 'VENDA';
 
 export interface Movimentacao {
@@ -178,7 +164,6 @@ export interface ResultadoEntrada {
 
 export type MotivoAjuste = 'PERDA' | 'AVARIA' | 'CONTAGEM' | 'DEVOLUCAO' | 'USO' | 'OUTRO';
 
-// ------------------------------------------------------------------ vendas
 export interface ValoresPagamento {
   dinheiro: number;
   pix: number;
@@ -249,7 +234,6 @@ export interface RegistrarVendaEntrada {
   primeiroVencimento?: string;
 }
 
-// ------------------------------------------------------------------ carnês
 export interface ParcelaCarne {
   id: number;
   codigo: string | null;
@@ -278,7 +262,6 @@ export interface ResultadoBaixa {
   parcelas: ParcelaCarne[];
 }
 
-// ------------------------------------------------------------------ caixa
 export interface Caixa {
   id: number;
   terminal: string | null;
@@ -311,7 +294,6 @@ export interface ResumoCaixa {
 
 export type CaixaComResumo = Caixa & { resumo: ResumoCaixa };
 
-// ------------------------------------------------------------------ relatórios
 export interface FormasValores {
   dinheiro: number;
   pix: number;

@@ -24,7 +24,6 @@ export function cnpjValido(valor: string): boolean {
   return digito(cnpj.slice(0, 12)) === Number(cnpj[12]) && digito(cnpj.slice(0, 13)) === Number(cnpj[13]);
 }
 
-/** Mesma regra do backend: CPF (11) ou CNPJ (14). */
 export function documentoValido(valor: string): boolean {
   const digitos = somenteDigitos(valor);
   return digitos.length === 11 ? cpfValido(digitos) : cnpjValido(digitos);

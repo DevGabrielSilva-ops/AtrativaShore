@@ -230,7 +230,6 @@ function FormularioProduto({
   const [falha, setFalha] = useState<string | null>(null);
   const { valores, campo } = form;
 
-  // Mesma fórmula do backend: (à vista − compra) / compra.
   const lucro = useMemo(() => {
     const compra = lerNumero(valores.valorCompra);
     const vista = lerNumero(valores.precoVista);

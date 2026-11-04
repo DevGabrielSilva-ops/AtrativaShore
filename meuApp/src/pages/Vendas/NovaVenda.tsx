@@ -46,12 +46,10 @@ interface Linha {
 const centavos = (valor: number) => Math.round(valor * 100);
 const reais = (valor: number) => valor / 100;
 
-/** Preço sugerido: a prazo (regra do backend), ou à vista se não houver. */
 function precoSugerido(produto: Produto): number {
   return (produto.precoPrazo ?? 0) > 0 ? produto.precoPrazo! : (produto.precoVista ?? 0);
 }
 
-/** Total da linha em centavos com o mesmo arredondamento do backend (preço × quantidade). */
 function totalLinha(linha: Linha): number {
   const preco = lerNumero(linha.preco) ?? 0;
   const quantidade = lerNumero(linha.quantidade) ?? 0;
@@ -81,7 +79,6 @@ export default function NovaVenda() {
   const acrescimoC = centavos(lerNumero(acrescimo) ?? 0);
   const total = subtotal - descontoC + acrescimoC - creditoTroca;
   const formas = Object.keys(pagamentosDigitados) as FormaPagamento[];
-  // Com uma forma só, o valor acompanha o total automaticamente.
   const pagamentos: Partial<Record<FormaPagamento, string>> =
     formas.length === 1 && total >= 0 ? { [formas[0]]: numeroParaCampo(reais(total)) } : pagamentosDigitados;
   const pago = formas.reduce((soma, forma) => soma + centavos(lerNumero(pagamentos[forma] ?? '') ?? 0), 0);
@@ -108,7 +105,6 @@ export default function NovaVenda() {
   };
 
   const alternarForma = (forma: FormaPagamento) => {
-    // Parte dos valores exibidos (com uma forma só, o total).
     const novo = { ...pagamentos };
     if (forma in novo) delete novo[forma];
     else novo[forma] = Object.keys(novo).length === 0 ? numeroParaCampo(reais(Math.max(total, 0))) : numeroParaCampo(reais(Math.max(restante, 0)));
@@ -116,7 +112,6 @@ export default function NovaVenda() {
   };
 
   const temCarne = 'CARNE' in pagamentos;
-  // Limite do carnê do cliente: a API recusa a venda se passar do disponível.
   const credito = useRequisicao(() => clienteService.creditoCarne(cliente!.id), [cliente?.id], cliente !== null);
   const disponivelCarne = cliente && credito.dados ? centavos(credito.dados.disponivel) : null;
   const valorCarne = temCarne ? centavos(lerNumero(pagamentos.CARNE ?? '') ?? 0) : 0;
@@ -604,7 +599,6 @@ function TabelaLinhas({
   );
 }
 
-/** Resultado da venda: comprovante com os valores devolvidos pela API (não os da tela). */
 function VendaConcluida({ venda, aoNovaVenda }: { venda: VendaDetalhe; aoNovaVenda: () => void }) {
   const formas = useMemo(
     () =>
