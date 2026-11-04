@@ -10,6 +10,7 @@ export interface EstadoBanco {
   tabelasMyisam: string[];
   credencialCriada: boolean;
   colunaPixCriada: boolean;
+  colunaLimiteCarneCriada: boolean;
 }
 
 const TABELAS_TRANSACIONAIS = [
@@ -47,6 +48,9 @@ export class VerificacaoBancoService implements OnApplicationBootstrap {
       if (!estado.colunaPixCriada) {
         this.logger.warn('Coluna mv_vendas.vr_pix não existe: vendas e relatórios falharão até rodar as migrations.');
       }
+      if (!estado.colunaLimiteCarneCriada) {
+        this.logger.warn('Coluna cad_clientes.limite_carne não existe: clientes e vendas no carnê falharão até rodar as migrations.');
+      }
     } catch (erro) {
       this.logger.error(`Não foi possível verificar o banco: ${(erro as Error).message}`);
     }
@@ -64,6 +68,9 @@ export class VerificacaoBancoService implements OnApplicationBootstrap {
     const pix = (await this.fonte.query(
       "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'mv_vendas' AND COLUMN_NAME = 'vr_pix'",
     )) as unknown[];
+    const limite = (await this.fonte.query(
+      "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cad_clientes' AND COLUMN_NAME = 'limite_carne'",
+    )) as unknown[];
 
     this.estado = {
       tabelasMyisam: motores
@@ -71,6 +78,7 @@ export class VerificacaoBancoService implements OnApplicationBootstrap {
         .map((linha) => linha.tabela),
       credencialCriada: credencial.length > 0,
       colunaPixCriada: pix.length > 0,
+      colunaLimiteCarneCriada: limite.length > 0,
     };
     return this.estado;
   }

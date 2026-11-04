@@ -7,6 +7,7 @@ import {
   IsString,
   Length,
   Matches,
+  Max,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -110,6 +111,18 @@ export class CriarClienteDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   faixaSalarial?: number;
+
+  @ApiPropertyOptional({
+    example: 800,
+    nullable: true,
+    description:
+      'Limite manual do carnê em reais (total de parcelas em aberto). null = calcular pela faixa salarial; 0 = sem carnê',
+  })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(99_999_999.99)
+  limiteCarne?: number | null;
 
   @ApiPropertyOptional({ maxLength: 255 })
   @Aparar()

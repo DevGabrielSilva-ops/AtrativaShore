@@ -1,7 +1,9 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, type Repository } from 'typeorm';
+import { consultarCreditoCarne, type CreditoCarne } from '../carnes/limite-carne.js';
 import { offset, paginado, type Paginado } from '../common/dto/paginacao.dto.js';
+import { ConfiguracaoService } from '../config/configuracao.service.js';
 import { codigoBarrasCliente } from '../common/utils/codigos.js';
 import { dataIsoValida } from '../common/utils/datas.js';
 import { somenteDigitos } from '../common/utils/documentos.js';
@@ -17,7 +19,15 @@ export class ClientesService {
   constructor(
     @InjectRepository(Cliente) private readonly clientes: Repository<Cliente>,
     private readonly fonte: DataSource,
+    private readonly config: ConfiguracaoService,
   ) {}
+
+  /** Limite do carnê, valor em parcelas abertas e quanto ainda pode comprar no carnê. */
+  async creditoCarne(id: number): Promise<CreditoCarne> {
+    const credito = await consultarCreditoCarne(this.fonte, id, this.config.valores.carneLimite);
+    if (!credito) throw new NotFoundException(`Cliente #${id} não encontrado`);
+    return credito;
+  }
 
   async listar(filtro: ListarClientesDto): Promise<Paginado<Cliente>> {
     const consulta = this.clientes.createQueryBuilder('c').orderBy('c.nome', 'ASC').addOrderBy('c.id', 'ASC');

@@ -1,5 +1,5 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
-import { dataLegadaTransformer, numeroCasas } from '../../common/utils/transformadores.js';
+import { dataLegadaTransformer, dinheiroTransformer, numeroCasas } from '../../common/utils/transformadores.js';
 
 /** cad_clientes — tipos e tamanhos idênticos ao banco existente. */
 @Entity('cad_clientes')
@@ -63,4 +63,11 @@ export class Cliente {
 
   @Column({ name: 'inf_adicional', type: 'varchar', length: 255, nullable: true })
   informacoesAdicionais: string | null;
+
+  /**
+   * Coluna criada pela API (migration AdicionarLimiteCarne). NULL = limite
+   * calculado pela faixa salarial; valor = limite manual (0 bloqueia o carnê).
+   */
+  @Column({ name: 'limite_carne', type: 'decimal', precision: 10, scale: 2, nullable: true, transformer: dinheiroTransformer })
+  limiteCarne: number | null;
 }

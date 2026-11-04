@@ -131,6 +131,8 @@ Todas estão em `.env.example`. As obrigatórias são `DB_HOST`, `DB_USERNAME`, 
 | `EXIGIR_CAIXA_ABERTO` | true | Vendas e recebimentos exigem caixa aberto |
 | `ESTOQUE_BAIXO_LIMITE` | 3 | Limite do estoque baixo para produtos sem mínimo cadastrado |
 | `CARNE_MAX_PARCELAS` | 12 | Máximo de parcelas no carnê |
+| `CARNE_LIMITE_PERCENTUAL_RENDA` | 50 | Limite do carnê = este % da faixa salarial do cliente |
+| `CARNE_LIMITE_PADRAO` | 300 | Limite do carnê (R$) para clientes sem faixa salarial |
 | `E2E_DB_DATABASE`, `E2E_LOGIN`, `E2E_SENHA` | — | Testes e2e (seção 10) |
 
 ---
@@ -144,6 +146,7 @@ Todas estão em `.env.example`. As obrigatórias são `DB_HOST`, `DB_USERNAME`, 
 | `ConverterTabelasInnodb` | `cad_produtos`, `mv_estoque`, `mv_estoque_historico`, `mv_vendas`, `mv_vendas_movimento`, `mv_financeiro` de MyISAM para **InnoDB** (necessário para transação real) | Volta para MyISAM |
 | `CriarApiCredencial` | Cria `api_credencial` (hash bcrypt da senha da API) sem alterar `cad_login` | Remove a tabela |
 | `AdicionarVrPix` | Cria `mv_vendas.vr_pix` | Remove a coluna (e os valores de Pix) |
+| `AdicionarLimiteCarne` | Cria `cad_clientes.limite_carne` (NULL para todos = limite calculado) | Remove a coluna (e os limites manuais) |
 
 Antes de rodar no banco da loja:
 
@@ -152,7 +155,7 @@ mysqldump -u <usuario> -p --single-transaction <banco> > backup-antes-migrations
 npm run migration:run
 ```
 
-Depois, **faça uma venda de teste no sistema desktop**. Se o desktop grava `mv_vendas` com `INSERT ... VALUES (...)` sem lista de colunas, a coluna `vr_pix` o faria falhar; nesse caso rode `npm run migration:revert` e me avise.
+Depois, **faça uma venda de teste no sistema desktop**. Se o desktop grava `mv_vendas` com `INSERT ... VALUES (...)` sem lista de colunas, a coluna `vr_pix` o faria falhar; nesse caso rode `npm run migration:revert` e me avise. Faça o mesmo com **um cadastro de cliente de teste no desktop** (coluna `limite_carne`).
 
 Enquanto as tabelas estiverem em MyISAM, **vendas, estornos, entradas e ajustes de estoque e baixas de carnê ficam bloqueados (503)**, para não gravar dados pela metade.
 
@@ -231,6 +234,7 @@ Todos com prefixo `/api/v1`. Detalhes de cada campo no Swagger.
 | PATCH | `/clientes/:id` | Atualiza |
 | DELETE | `/clientes/:id` | Exclui (409 se tiver vendas ou carnês) |
 | GET | `/clientes/:id/vendas` | Vendas do cliente |
+| GET | `/clientes/:id/credito-carne` | Limite do carnê: `limite`, `origem` (MANUAL/RENDA/PADRAO), `emAberto`, `disponivel` |
 | **Fornecedores** |||
 | GET, POST | `/fornecedores` | Lista / cadastra |
 | GET, PATCH, DELETE | `/fornecedores/:id` | Consulta / atualiza / exclui (409 com vínculos) |
@@ -377,6 +381,15 @@ POST /api/v1/carnes/baixa
 6. Baixa o estoque com `UPDATE … WHERE quantidade >= ?`: **o estoque nunca fica negativo**, mesmo com o desktop vendendo ao mesmo tempo.
 7. Troca: o item devolvido volta ao estoque (registrado em `mv_estoque_historico` como o desktop faz).
 8. **Qualquer erro desfaz tudo (rollback).**
+
+### Limite do carnê
+
+- Cada cliente tem um limite para o **total de parcelas em aberto** no carnê.
+- Limite = `limite_carne` do cadastro, se preenchido (exceção por cliente; `0` bloqueia o carnê); senão **faixa salarial × `CARNE_LIMITE_PERCENTUAL_RENDA` %**; sem faixa salarial, `CARNE_LIMITE_PADRAO`.
+- Na venda, parcelas em aberto + valor desta venda no carnê não podem passar do limite: **409** e nada é gravado. Só a parte paga no carnê conta; dinheiro, Pix e cartão não.
+- O valor em aberto é recalculado de `mv_financeiro` a cada venda (com `FOR UPDATE`), então **cada parcela paga libera o limite na hora**, e venda estornada também.
+- Não há liberação acima do limite: para vender mais, receba parcelas ou aumente a renda/limite do cliente.
+- O sistema desktop **não** conhece essa regra; vendas no carnê feitas por ele não são bloqueadas (mas contam no valor em aberto).
 
 ### Estorno
 

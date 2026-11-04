@@ -34,7 +34,6 @@ export interface ParcelaCarne {
   cliente: { id: number; nome: string | null; telefone: string | null; celular: string | null } | null;
   parcela: number;
   totalParcelas: number;
-  /** "1/5", como mostrado na tela de carnês. */
   numeroParcela: string;
   dataCompra: string | null;
   vencimento: string | null;
@@ -121,12 +120,6 @@ export class CarnesService {
     return this.mapear(linha, this.hoje());
   }
 
-  /**
-   * Baixa (pagamento) de uma ou mais parcelas. Como no desktop:
-   * marca a parcela como paga em mv_financeiro e registra o valor recebido
-   * como um item "RECEBIMENTO DE CARNÊ" (modo_venda 6) em mv_vendas_movimento,
-   * que é o que entra no caixa do dia.
-   */
   async baixar(dto: BaixaCarneDto, usuario: UsuarioAutenticado): Promise<ResultadoBaixa> {
     await this.banco.garantirTransacoes();
     const { terminal, turno, exigirCaixaAberto } = this.config.pdv;
@@ -204,7 +197,7 @@ export class CarnesService {
     };
   }
 
-  /** Produto de serviço "RECEBIMENTO DE CARNÊ" (modo_estoque 6) usado pelo desktop. */
+ 
   private async produtoRecebimento(manager: EntityManager): Promise<number> {
     const [linha] = (await manager.query(
       `SELECT id FROM cad_produtos WHERE modo_estoque = ?

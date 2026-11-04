@@ -27,6 +27,17 @@ export class ClientesController {
     return this.clientes.listar(filtro);
   }
 
+  @Get(':id/credito-carne')
+  @ApiOperation({
+    summary: 'Limite do carnê do cliente: limite, valor em aberto e disponível',
+    description:
+      'Limite manual (limiteCarne) ou faixa salarial × CARNE_LIMITE_PERCENTUAL_RENDA, ou CARNE_LIMITE_PADRAO sem renda. ' +
+      'Parcelas pagas liberam o limite.',
+  })
+  creditoCarne(@Param('id', ParseIntPipe) id: number) {
+    return this.clientes.creditoCarne(id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Consulta um cliente' })
   obter(@Param('id', ParseIntPipe) id: number) {

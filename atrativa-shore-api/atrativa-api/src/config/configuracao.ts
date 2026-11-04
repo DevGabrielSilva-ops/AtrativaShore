@@ -35,6 +35,11 @@ export interface Configuracao {
   };
   estoqueBaixoLimitePadrao: number;
   carneMaxParcelas: number;
+  /** Limite de compras no carnê (ver carnes/limite-carne.ts). */
+  carneLimite: {
+    percentualRenda: number;
+    limitePadrao: number;
+  };
 }
 
 type Ambiente = Record<string, string | undefined>;
@@ -61,6 +66,18 @@ function inteiro(
   if (!Number.isInteger(valor) || valor < minimo || valor > maximo) {
     throw new Error(
       `Variável ${chave} inválida: "${bruto}" (esperado inteiro entre ${minimo} e ${maximo})`,
+    );
+  }
+  return valor;
+}
+
+function decimal(env: Ambiente, chave: string, padrao: number, minimo: number, maximo: number): number {
+  const bruto = env[chave]?.trim();
+  if (bruto === undefined || bruto === '') return padrao;
+  const valor = Number(bruto.replace(',', '.'));
+  if (!Number.isFinite(valor) || valor < minimo || valor > maximo || Math.round(valor * 100) !== valor * 100) {
+    throw new Error(
+      `Variável ${chave} inválida: "${bruto}" (esperado valor entre ${minimo} e ${maximo}, até 2 casas decimais)`,
     );
   }
   return valor;
@@ -132,6 +149,10 @@ export function carregarConfiguracao(env: Ambiente = process.env): Configuracao 
     },
     estoqueBaixoLimitePadrao: inteiro(env, 'ESTOQUE_BAIXO_LIMITE', 3, 0, 1_000_000),
     carneMaxParcelas: inteiro(env, 'CARNE_MAX_PARCELAS', 12, 1, 48),
+    carneLimite: {
+      percentualRenda: inteiro(env, 'CARNE_LIMITE_PERCENTUAL_RENDA', 50, 0, 1000),
+      limitePadrao: decimal(env, 'CARNE_LIMITE_PADRAO', 300, 0, 10_000_000),
+    },
   };
 }
 

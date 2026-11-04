@@ -24,18 +24,11 @@ function textosIguais(a: string, b: string): boolean {
   return bufferA.length === bufferB.length && timingSafeEqual(bufferA, bufferB);
 }
 
-/**
- * Autenticação.
- *
- * O banco legado guarda a senha em texto puro (cad_login.senha). Para não
- * quebrar o desktop, a API não altera essa coluna: no PRIMEIRO login de cada
- * usuário ela confere a senha legada e grava um hash bcrypt em
- * api_credencial. Daí em diante a API só usa o hash.
- */
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger('Auth');
-  /** Hash descartável comparado quando o usuário não existe, para o tempo de resposta não revelar isso. */
+  
   private readonly hashFicticio: string;
 
   constructor(
@@ -86,7 +79,7 @@ export class AuthService {
     if (senhaAtual === novaSenha) {
       throw new BadRequestException('A nova senha deve ser diferente da atual');
     }
-    // Reaproveita a validação do login (inclusive a migração da senha legada).
+    
     try {
       await this.login(usuario.login, senhaAtual);
     } catch {

@@ -8,6 +8,7 @@ import {
 import { DataSource, type EntityManager, In, QueryFailedError } from 'typeorm';
 import type { UsuarioAutenticado } from '../auth/usuario-autenticado.js';
 import { buscarCaixaAberto } from '../caixa/consultas-caixa.js';
+import { consultarCreditoCarne, garantirLimiteCarne } from '../carnes/limite-carne.js';
 import { ConfiguracaoService } from '../config/configuracao.service.js';
 import {
   FormaPagamento,
@@ -170,6 +171,14 @@ export class VendasService {
       })),
       descontoMaximoPercentual: descontoMaximo,
     });
+
+    // Limite do carnê: parcelas em aberto + esta venda não podem passar do limite do cliente.
+    const valorCarne = calculo.porForma[FormaPagamento.CARNE];
+    if (valorCarne > 0) {
+      const credito = await consultarCreditoCarne(manager, idCliente, this.config.valores.carneLimite, true);
+      if (!credito) throw new NotFoundException(`Cliente #${idCliente} não encontrado`);
+      garantirLimiteCarne(credito, valorCarne, nomeCliente);
+    }
 
     // Estoque: bloqueia os saldos e confere antes de gravar qualquer coisa.
     const saidas = agruparQuantidades(

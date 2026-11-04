@@ -23,6 +23,9 @@ class BancoFalso {
   caixaAberto = true;
   /** Simula outro terminal vendendo o produto entre a conferência e a baixa. */
   roubarEstoqueAntesDaBaixa: number | null = null;
+  /** Cliente para o limite do carnê. */
+  cliente = { limite_carne: null as string | null, faixasalarial: '2000.00' as string | null };
+  carneEmAberto = 0;
 
   fonte(): DataSource {
     return {
@@ -56,6 +59,11 @@ class BancoFalso {
       },
       query: async (sql: string, parametros: unknown[] = []) => {
         if (sql.startsWith('SELECT nome_cliente')) return [{ nome_cliente: 'MARIA TESTE' }];
+        if (sql.startsWith('SELECT limite_carne')) return [this.cliente];
+        if (sql.includes('SUM(vr_parcela)')) {
+          if (!sql.includes('FOR UPDATE')) throw new Error('limite do carnê deve travar as parcelas');
+          return [{ total: this.carneEmAberto }];
+        }
         if (sql.includes('FROM mv_estoque WHERE id_produto IN')) {
           const ids = parametros[0] as number[];
           return ids.filter((id) => this.saldos.has(id)).map((id) => ({ id_produto: id, quantidade: this.saldos.get(id) }));
@@ -91,7 +99,7 @@ function montar(banco: BancoFalso, transacoesOk = true) {
   const config = {
     pdv: { terminal: '02', turno: '1', exigirCaixaAberto: true },
     fusoHorario: 'America/Sao_Paulo',
-    valores: { carneMaxParcelas: 12 },
+    valores: { carneMaxParcelas: 12, carneLimite: { percentualRenda: 50, limitePadrao: 300 } },
   } as unknown as ConfiguracaoService;
   const empresa = { obter: async () => ({ maxDesconto: null }) } as unknown as EmpresaService;
   const verificacao = {
@@ -246,6 +254,53 @@ describe('VendasService.registrar', () => {
     expect(lancamentos.every((l) => /^\d{13}$/.test(String(l.codigoCarne)))).toBe(true);
     const [venda] = banco.gravadas('Venda') as Array<Record<string, unknown>>;
     expect(venda).toMatchObject({ valorCarne: 119, parcelas: 3, idCliente: 175 });
+  });
+
+  describe('limite do carnê', () => {
+    const vendaCarne = (valor: number) => ({
+      idCliente: 175,
+      itens: [{ idProduto: 10, quantidade: 1, precoUnitario: valor }],
+      pagamentos: [{ forma: FormaPagamento.CARNE, valor }],
+      parcelasCarne: 2,
+    });
+
+    it('aceita até o disponível (50% da renda menos as parcelas em aberto)', async () => {
+      banco.carneEmAberto = 700; // limite R$ 1.000, disponível R$ 300
+      await montar(banco).registrar(vendaCarne(300), usuario);
+      expect(banco.commits).toBe(1);
+    });
+
+    it('recusa com 409 e não grava nada acima do disponível', async () => {
+      banco.carneEmAberto = 700;
+      await expect(montar(banco).registrar(vendaCarne(300.01), usuario)).rejects.toThrow(/Limite do carnê/);
+      expect(banco.confirmadas).toHaveLength(0);
+      expect(banco.saldos.get(10)).toBe(5);
+    });
+
+    it('parcelas pagas liberam o limite', async () => {
+      banco.carneEmAberto = 1000;
+      await expect(montar(banco).registrar(vendaCarne(100), usuario)).rejects.toBeInstanceOf(ConflictException);
+      banco.carneEmAberto = 900; // cliente pagou R$ 100
+      await montar(banco).registrar(vendaCarne(100), usuario);
+      expect(banco.commits).toBe(1);
+    });
+
+    it('sem renda usa o limite padrão; limite manual tem prioridade', async () => {
+      banco.cliente = { limite_carne: null, faixasalarial: null };
+      await expect(montar(banco).registrar(vendaCarne(300.01), usuario)).rejects.toBeInstanceOf(ConflictException);
+      banco.cliente = { limite_carne: '5000.00', faixasalarial: null };
+      await montar(banco).registrar(vendaCarne(3000), usuario);
+      expect(banco.commits).toBe(1);
+    });
+
+    it('a parte paga em dinheiro não conta para o limite', async () => {
+      banco.carneEmAberto = 900; // disponível R$ 100
+      await montar(banco).registrar(
+        { ...vendaCarne(119), pagamentos: [{ forma: FormaPagamento.DINHEIRO, valor: 19 }, { forma: FormaPagamento.CARNE, valor: 100 }] },
+        usuario,
+      );
+      expect(banco.commits).toBe(1);
+    });
   });
 
   it('troca devolve o item ao estoque e abate o valor', async () => {
