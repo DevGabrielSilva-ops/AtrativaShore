@@ -76,7 +76,7 @@ export class AtivacaoService {
         .where('c.hash = :hash', { hash: hashDoCodigo(dto.codigo) })
         .getOne();
       this.conferirSituacao(codigo);
-      if (codigo!.emailDestinatario && codigo!.emailDestinatario.toLowerCase() !== email) {
+      if (codigo!.emailDestinatario !== email) {
         throw new ForbiddenException('Este código foi emitido para outro e-mail. Use o e-mail informado ao suporte.');
       }
       const empresa = await this.empresaDoCodigo(manager, codigo!, dto);
