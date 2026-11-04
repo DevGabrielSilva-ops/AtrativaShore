@@ -1,0 +1,76 @@
+import { RequerPermissao } from '../acesso/acesso.decorators.js';
+import { Auditar } from '../auditoria/auditar.decorator.js';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ClientesService } from './clientes.service.js';
+import { AtualizarClienteDto, CriarClienteDto, ListarClientesDto } from './dto/cliente.dto.js';
+
+@ApiTags('Clientes')
+@ApiBearerAuth()
+@Controller('clientes')
+export class ClientesController {
+  constructor(private readonly clientes: ClientesService) {}
+
+  @RequerPermissao('clientes.consultar')
+  @Get()
+  @ApiOperation({ summary: 'Lista clientes (busca por nome, CPF/CNPJ, código ou id)' })
+  listar(@Query() filtro: ListarClientesDto) {
+    return this.clientes.listar(filtro);
+  }
+
+  @RequerPermissao('clientes.consultar')
+  @Get(':id/credito-carne')
+  @ApiOperation({
+    summary: 'Limite do carnê do cliente: limite, valor em aberto e disponível',
+    description:
+      'Limite manual (limiteCarne) ou faixa salarial × CARNE_LIMITE_PERCENTUAL_RENDA, ou CARNE_LIMITE_PADRAO sem renda. ' +
+      'Parcelas pagas liberam o limite.',
+  })
+  creditoCarne(@Param('id', ParseIntPipe) id: number) {
+    return this.clientes.creditoCarne(id);
+  }
+
+  @RequerPermissao('clientes.consultar')
+  @Get(':id')
+  @ApiOperation({ summary: 'Consulta um cliente' })
+  obter(@Param('id', ParseIntPipe) id: number) {
+    return this.clientes.obter(id);
+  }
+
+  @RequerPermissao('clientes.gerenciar')
+  @Auditar('cliente.criar', 'cliente')
+  @Post()
+  @ApiOperation({ summary: 'Cadastra um cliente (o código de barras é gerado no padrão do desktop)' })
+  criar(@Body() dto: CriarClienteDto) {
+    return this.clientes.criar(dto);
+  }
+
+  @RequerPermissao('clientes.gerenciar')
+  @Auditar('cliente.atualizar', 'cliente')
+  @Patch(':id')
+  @ApiOperation({ summary: 'Atualiza dados do cliente' })
+  atualizar(@Param('id', ParseIntPipe) id: number, @Body() dto: AtualizarClienteDto) {
+    return this.clientes.atualizar(id, dto);
+  }
+
+  @RequerPermissao('clientes.excluir')
+  @Auditar('cliente.excluir', 'cliente')
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Exclui um cliente sem vendas nem carnês (409 se houver)' })
+  async remover(@Param('id', ParseIntPipe) id: number) {
+    await this.clientes.remover(id);
+  }
+}

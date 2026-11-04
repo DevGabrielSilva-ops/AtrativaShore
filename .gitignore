@@ -1,0 +1,7 @@
+# Arquivos locais (dumps do banco, pacotes temporarios)
+banco/
+*.sql
+_*.tgz
+node_modules/
+dist/
+.env
