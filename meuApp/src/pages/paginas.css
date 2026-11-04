@@ -1,0 +1,492 @@
+/* Estilos específicos de páginas. Componentes genéricos ficam em styles/componentes.css. */
+
+/* ------------------------------------------------------------ utilitários */
+.page-header-acoes {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.form-acoes {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--esp-2);
+  margin-top: var(--esp-5);
+}
+.link-pequeno {
+  font-size: var(--texto-sm);
+  font-weight: 550;
+  color: var(--cor-marca);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.link-pequeno:hover {
+  text-decoration: underline;
+}
+.link-botao {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--cor-marca);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.link-botao:focus-visible,
+.link-pequeno:focus-visible,
+.dash-carne:focus-visible {
+  outline: none;
+  box-shadow: var(--foco);
+  border-radius: var(--raio-sm);
+}
+.texto-marca {
+  color: var(--cor-marca);
+}
+.riscado {
+  text-decoration: line-through;
+}
+.filtro-ativo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--esp-2);
+  padding: 4px 6px 4px 12px;
+  border-radius: var(--raio-pill);
+  background: var(--cor-marca-suave);
+  border: 1px solid var(--cor-marca-borda);
+  color: var(--cor-marca);
+  font-size: var(--texto-sm);
+}
+.painel-nota {
+  margin: 0;
+  padding: var(--esp-3) var(--esp-5);
+  border-top: 1px solid var(--cor-linha);
+}
+.rodape-esquerda {
+  margin-right: auto;
+  align-self: center;
+}
+.campo-curto {
+  max-width: 220px;
+}
+.campo-alinhado {
+  justify-content: flex-end;
+  padding-bottom: 10px;
+}
+.caixa-tabela {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--cor-marca);
+  cursor: pointer;
+}
+.cupom-linhas.sem-borda {
+  border-top: 0;
+  padding-top: 0;
+}
+.indicadores-1 {
+  grid-template-columns: minmax(0, 1fr);
+}
+.indicadores-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 1100px) {
+  .indicadores-2 .indicador:nth-child(n + 3) {
+    border-top: 0;
+  }
+}
+.so-impressao {
+  display: none;
+}
+
+/* ------------------------------------------------------------ login */
+.login {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--esp-6) var(--esp-4);
+  background:
+    radial-gradient(1200px 520px at 50% -10%, var(--cor-marca-suave), transparent 70%),
+    var(--cor-fundo);
+}
+.login-cartao {
+  width: 100%;
+  max-width: 400px;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-linha);
+  border-radius: var(--raio-lg);
+  padding: var(--esp-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-4);
+}
+.login-cartao h1 {
+  margin: var(--esp-2) 0 0;
+  font-size: var(--texto-xl);
+}
+.login-cartao > p {
+  margin: -8px 0 0;
+}
+.login-logo {
+  width: 168px;
+  height: auto;
+}
+.login-botao {
+  width: 100%;
+  margin-top: var(--esp-2);
+}
+.entrada-senha {
+  position: relative;
+}
+.entrada-senha .entrada {
+  padding-right: 44px;
+}
+.entrada-senha .btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+@media (max-width: 480px) {
+  .login-cartao {
+    padding: var(--esp-6) var(--esp-5);
+  }
+}
+
+/* ------------------------------------------------------------ dashboard */
+.dash-topo {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: var(--esp-4);
+}
+.dash-hero {
+  padding: var(--esp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  border-top: 3px solid var(--cor-marca);
+}
+.dash-hero .indicador-rotulo {
+  margin: 0;
+}
+.dash-hero-valor {
+  margin: 0;
+  font-size: clamp(2.25rem, 4vw, var(--texto-hero));
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+  color: var(--cor-texto);
+  overflow-wrap: anywhere;
+}
+.dash-hero > .pequeno {
+  margin: 0;
+}
+.dash-hero-rodape {
+  margin-top: auto;
+  padding-top: var(--esp-4);
+  border-top: 1px solid var(--cor-linha);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--esp-3);
+}
+.dash-hero-rodape > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.dash-indicadores {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: stretch;
+}
+.dash-indicadores .indicador:nth-child(odd) {
+  border-left: 0;
+}
+.dash-indicadores .indicador:nth-child(n + 3) {
+  border-top: 1px solid var(--cor-linha);
+}
+.dash-grade {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--esp-4);
+  align-items: start;
+}
+.dash-carne {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--esp-2);
+  margin-top: var(--esp-4);
+  padding: var(--esp-3) var(--esp-4);
+  border-radius: var(--raio-md);
+  background: var(--cor-superficie-2);
+  border: 1px solid var(--cor-linha);
+  color: var(--cor-texto);
+  text-decoration: none;
+  font-size: var(--texto-sm);
+  transition: border-color var(--transicao);
+}
+.dash-carne:hover {
+  border-color: var(--cor-marca-borda);
+}
+@media (max-width: 1100px) {
+  .dash-topo,
+  .dash-grade {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 560px) {
+  .dash-hero {
+    padding: var(--esp-5);
+  }
+  .dash-hero-rodape {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dash-hero-rodape > div {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+}
+
+/* ------------------------------------------------------------ seletor de busca */
+.seletor {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.seletor-rotulo {
+  font-size: var(--texto-sm);
+  font-weight: 550;
+  color: var(--cor-texto);
+}
+.seletor-entrada {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.seletor-entrada > svg:first-child {
+  position: absolute;
+  left: 12px;
+  color: var(--cor-texto-3);
+  pointer-events: none;
+}
+.seletor-entrada .entrada {
+  padding-left: 38px;
+  padding-right: 36px;
+}
+.seletor-entrada .spinner {
+  position: absolute;
+  right: 12px;
+}
+.seletor-lista {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-linha);
+  border-radius: var(--raio-md);
+  box-shadow: var(--sombra-flutuante);
+}
+.seletor-opcao {
+  padding: 8px 10px;
+  border-radius: var(--raio-sm);
+  cursor: pointer;
+}
+.seletor-opcao.ativa {
+  background: var(--cor-marca-suave);
+}
+.seletor-vazio {
+  padding: 10px;
+  color: var(--cor-texto-2);
+  font-size: var(--texto-sm);
+}
+.opcao-produto {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-3);
+  min-width: 0;
+}
+.opcao-produto > :first-child {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.opcao-produto-direita {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.produto-escolhido {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--esp-3);
+  padding: var(--esp-3) var(--esp-4);
+  border-radius: var(--raio-md);
+  background: var(--cor-marca-suave);
+  border: 1px solid var(--cor-marca-borda);
+}
+
+/* ------------------------------------------------------------ carnês */
+.carnes-grade {
+  display: grid;
+  grid-template-columns: minmax(300px, 2fr) minmax(0, 3fr);
+  gap: var(--esp-4);
+  align-items: start;
+}
+.carnes-clientes {
+  position: sticky;
+  top: calc(var(--header-altura) + var(--esp-4));
+}
+.seletor-codigo {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--esp-2);
+}
+.seletor-codigo > :first-child {
+  flex: 1;
+}
+.carnes-acao {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--esp-3);
+  padding: var(--esp-3) var(--esp-5);
+  background: var(--cor-marca-suave);
+  border-top: 1px solid var(--cor-marca-borda);
+  border-radius: 0 0 var(--raio-md) var(--raio-md);
+}
+@media (max-width: 1000px) {
+  .carnes-grade {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .carnes-clientes {
+    position: static;
+  }
+}
+
+/* ------------------------------------------------------------ caixa */
+.abrir-caixa {
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.abrir-caixa > .campo {
+  width: 240px;
+}
+
+/* ------------------------------------------------------------ impressão
+ * Comprovantes são abertos em modais. Na impressão, o app some e só o modal
+ * aberto é impresso, sem moldura, rodapé ou botão de fechar.
+ */
+@media print {
+  body.com-modal #root {
+    display: none;
+  }
+  .modal-fundo {
+    position: static;
+    background: none;
+    padding: 0;
+    overflow: visible;
+    display: block;
+  }
+  .modal {
+    max-width: none !important;
+    max-height: none;
+    box-shadow: none;
+    border-radius: 0;
+  }
+  .modal-corpo {
+    overflow: visible;
+    padding: 0;
+  }
+  .modal-cabecalho {
+    padding: 0 0 var(--esp-3);
+  }
+  .modal-cabecalho .btn,
+  .modal-rodape,
+  .toasts {
+    display: none !important;
+  }
+  .area-impressao {
+    display: block;
+  }
+  .so-impressao {
+    display: block;
+  }
+  .painel,
+  .indicadores {
+    break-inside: avoid;
+  }
+  .carnes-clientes {
+    position: static;
+  }
+}
+
+/* ------------------------------------------------------------ limite do carnê */
+.credito-carne {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  padding: var(--esp-4);
+  margin-bottom: var(--esp-4);
+  border: 1px solid var(--cor-linha);
+  border-radius: var(--raio-md);
+  background: var(--cor-superficie-2);
+}
+.credito-carne p {
+  margin: 0;
+}
+.credito-carne-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--esp-3);
+}
+.credito-carne-topo > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.credito-carne-valor {
+  font-size: var(--texto-xl);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.credito-carne-barra {
+  height: 8px;
+  border-radius: var(--raio-pill);
+  background: var(--cor-linha);
+  overflow: hidden;
+}
+.credito-carne-barra > span {
+  display: block;
+  height: 100%;
+  border-radius: var(--raio-pill);
+  background: var(--serie-carne);
+}
+.credito-carne-barra > span.esgotado {
+  background: var(--cor-perigo);
+}
+.cupom-credito {
+  margin: var(--esp-2) 0 0;
+}
+.carnes-credito {
+  padding: var(--esp-4) var(--esp-5) 0;
+}
