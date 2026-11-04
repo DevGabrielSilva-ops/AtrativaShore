@@ -1,118 +1,454 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Atrativa Shore — API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API REST do Atrativa Shore em **NestJS 12 + TypeScript + TypeORM 1.1 + MySQL 8**, construída sobre o **banco legado da loja** (o mesmo usado pelo sistema desktop). O frontend React + Vite consome a API em `/api/v1`.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+> Mapeamento completo do banco: [`../../docs/DATABASE_MAPPING.md`](../../docs/DATABASE_MAPPING.md) · Decisões e planejamento: [`../../docs/PLANEJAMENTO.md`](../../docs/PLANEJAMENTO.md)
 
-## Description
+---
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Sumário
 
-## Project setup
+1. [Arquitetura](#1-arquitetura)
+2. [Instalação e primeira execução](#2-instalação-e-primeira-execução)
+3. [Variáveis de ambiente](#3-variáveis-de-ambiente)
+4. [Migrations](#4-migrations)
+5. [Autenticação](#5-autenticação)
+6. [Padrão das respostas](#6-padrão-das-respostas)
+7. [Endpoints](#7-endpoints)
+8. [Exemplos](#8-exemplos)
+9. [Regras de negócio](#9-regras-de-negócio)
+10. [Testes](#10-testes)
+11. [Integração com o frontend](#11-integração-com-o-frontend)
+12. [Limitações conhecidas](#12-limitações-conhecidas)
 
-```bash
-$ npm install
+---
+
+## 1. Arquitetura
+
+```text
+src/
+├── main.ts                 prefixo /api/v1, CORS, ValidationPipe, Swagger
+├── app.module.ts           módulos + guard JWT global, guard de perfil, filtro e interceptor
+├── config/                 leitura e validação do .env (a API não sobe com config inválida)
+├── database/               conexão (synchronize SEMPRE false), entidades, migrations, verificação do banco
+├── common/
+│   ├── constantes/legado.ts   códigos do desktop (modo_venda, origem do financeiro, planos...)
+│   ├── utils/                 dinheiro em centavos, datas no fuso da loja, códigos EAN-13, CPF/CNPJ
+│   ├── filters/               erros padronizados (inclusive erros do MySQL)
+│   ├── interceptors/          envelope { data } nas respostas
+│   ├── guards/, decorators/   @Publico(), @SomenteAdministrador(), @UsuarioAtual()
+│   └── dto/, validacao/       paginação, período, mensagens de validação em português
+├── auth/                   login, JWT, migração da senha legada para bcrypt
+├── usuarios/               cad_login, cad_login_perfil, api_credencial
+├── empresa/                cad_empresa
+├── clientes/               cad_clientes, cad_clientes_obs
+├── fornecedores/           cad_fornecedores
+├── produtos/               cad_produtos, cad_produtos_tipo
+├── estoque/                mv_estoque, mv_estoque_historico (+ operações de saldo usadas por vendas)
+├── vendas/                 mv_vendas, mv_vendas_movimento, cálculo da venda (função pura)
+├── financeiro/             entidade mv_financeiro (usada por vendas, carnês e estoque)
+├── carnes/                 parcelas de carnê e baixa
+├── caixa/                  mv_fechamento (abertura, fechamento, resumo)
+├── relatorios/             dashboard e relatórios (SQL agregado)
+└── saude/                  GET /health
 ```
 
-## Compile and run the project
+Princípios:
+
+- **O banco é a fonte da verdade.** Entidades usam os nomes reais de tabelas e colunas; nenhuma tabela legada foi renomeada ou removida.
+- **Controllers só recebem e devolvem**; regras ficam nos services. O cálculo da venda é uma função pura (`vendas/calculo/calculo-venda.ts`), testada isoladamente.
+- **Compatível com o desktop**: vendas, carnês, trocas e notas são gravados no mesmo formato que o sistema desktop usa (controle `yyyymmddhhmmss`, código do carnê EAN-13, lançamentos em `mv_financeiro`), porque os dois sistemas usam o mesmo banco.
+- **Dinheiro em centavos inteiros** em todos os cálculos (o banco usa FLOAT).
+
+---
+
+## 2. Instalação e primeira execução
+
+Pré-requisitos: Node.js 22+, npm 10+, Docker (para o MySQL de desenvolvimento).
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+cd atrativa-shore-api/atrativa-api
+npm install
+cp .env.example .env          # e ajuste os valores (seção 3)
 ```
 
-## Run tests
+### 2.1. MySQL de desenvolvimento com o dump da loja
+
+O `docker-compose.yaml` sobe um MySQL 8.4 na porta **3307**. O dump original é do MySQL 4.0 e não importa direto no MySQL 8; converta-o primeiro (o script não altera dados, só a sintaxe — veja o comentário no arquivo):
 
 ```bash
-# unit tests
-$ npm run test
+docker compose up -d
+npm run db:converter-dump -- /caminho/bd.sql bd-mysql8.sql
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+docker cp bd-mysql8.sql atrativa-mysql:/tmp/bd.sql
+docker exec atrativa-mysql sh -c "mysql -uroot -proot --default-character-set=latin1 atrativaLoja < /tmp/bd.sql"
 ```
 
-## Deployment
+> ⚠️ O dump contém `DROP TABLE IF EXISTS`. Importe apenas em banco vazio ou de teste, **nunca por cima do banco que a loja está usando**.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### 2.2. Migrations (uma vez, após backup)
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run migration:show     # o que falta aplicar
+npm run migration:run      # aplica (ver seção 4)
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### 2.3. Iniciar
 
-## Observability
+```bash
+npm run start:dev          # desenvolvimento, com recarga
+npm run build && npm run start:prod
+```
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
+- API: `http://localhost:3000/api/v1`
+- Swagger: `http://localhost:3000/api/v1/docs`
+- Saúde: `GET /api/v1/health` (mostra se as migrations foram aplicadas)
 
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
+Na inicialização a API **avisa no log** se alguma tabela ainda está em MyISAM ou se falta alguma migration.
 
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
+---
 
-This project is already instrumented. Create a free account at [observe.nestjs.com](https://observe.nestjs.com), add an application, and paste the generated app key and secret into the `ObserveModule.forRoot()` call in `src/app.module.ts`.
+## 3. Variáveis de ambiente
 
-The free plan needs no payment details and covers 300,000 events a month. You can also browse the [live demo](https://www.observe-demo.nestjs.com/dashboard) first - the whole dashboard over a busy service's data, with nothing to install.
+Todas estão em `.env.example`. As obrigatórias são `DB_HOST`, `DB_USERNAME`, `DB_DATABASE` e `JWT_SECRET` (mínimo 32 caracteres).
 
-## Resources
+| Variável | Padrão | Descrição |
+|---|---|---|
+| `PORT` | 3000 | Porta HTTP |
+| `API_PREFIX` | api/v1 | Prefixo das rotas |
+| `CORS_ORIGINS` | http://localhost:5173 | Origens do frontend, separadas por vírgula |
+| `SWAGGER_ENABLED` | true | Publica `/api/v1/docs` |
+| `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE` | — / 3306 | Conexão MySQL |
+| `DB_CHARSET` | utf8mb4 | Charset da conexão |
+| `DB_LOGGING` | false | Loga as consultas SQL |
+| `JWT_SECRET` | — | Segredo do token (gere com `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`) |
+| `JWT_EXPIRES_IN` | 1d | Validade do token (`1h`, `8h`, `1d`...) |
+| `BCRYPT_ROUNDS` | 10 | Custo do hash de senha |
+| `APP_TIMEZONE` | America/Sao_Paulo | Fuso usado em datas e no "controle" |
+| `EMPRESA_ID` | 1 | Empresa de `cad_empresa` |
+| `PDV_TERMINAL` | 02 | Terminal gravado nas vendas e no caixa da API (o desktop usa 01) |
+| `PDV_TURNO` | 1 | Turno gravado nas vendas |
+| `EXIGIR_CAIXA_ABERTO` | true | Vendas e recebimentos exigem caixa aberto |
+| `ESTOQUE_BAIXO_LIMITE` | 3 | Limite do estoque baixo para produtos sem mínimo cadastrado |
+| `CARNE_MAX_PARCELAS` | 12 | Máximo de parcelas no carnê |
+| `E2E_DB_DATABASE`, `E2E_LOGIN`, `E2E_SENHA` | — | Testes e2e (seção 10) |
 
-Check out a few resources that may come in handy when working with NestJS:
+---
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observe](https://observe.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## 4. Migrations
 
-## Support
+`synchronize` está **sempre desligado** e as migrations **nunca rodam sozinhas**. Todas foram autorizadas e nenhuma apaga dados do legado.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+| Migration | O que faz | Reverter |
+|---|---|---|
+| `ConverterTabelasInnodb` | `cad_produtos`, `mv_estoque`, `mv_estoque_historico`, `mv_vendas`, `mv_vendas_movimento`, `mv_financeiro` de MyISAM para **InnoDB** (necessário para transação real) | Volta para MyISAM |
+| `CriarApiCredencial` | Cria `api_credencial` (hash bcrypt da senha da API) sem alterar `cad_login` | Remove a tabela |
+| `AdicionarVrPix` | Cria `mv_vendas.vr_pix` | Remove a coluna (e os valores de Pix) |
 
-## Stay in touch
+Antes de rodar no banco da loja:
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```bash
+mysqldump -u <usuario> -p --single-transaction <banco> > backup-antes-migrations.sql
+npm run migration:run
+```
 
-## License
+Depois, **faça uma venda de teste no sistema desktop**. Se o desktop grava `mv_vendas` com `INSERT ... VALUES (...)` sem lista de colunas, a coluna `vr_pix` o faria falhar; nesse caso rode `npm run migration:revert` e me avise.
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Enquanto as tabelas estiverem em MyISAM, **vendas, estornos, entradas e ajustes de estoque e baixas de carnê ficam bloqueados (503)**, para não gravar dados pela metade.
+
+---
+
+## 5. Autenticação
+
+- `POST /api/v1/auth/login` com `{ "login": "ATRATIVA", "senha": "..." }` devolve `accessToken` (JWT) e os dados do usuário.
+- Envie em toda requisição: `Authorization: Bearer <accessToken>`.
+- Todas as rotas exigem token, exceto `POST /auth/login` e `GET /health`.
+- **Senha:** o banco legado guarda a senha em texto puro (`cad_login.senha`). A API não altera essa coluna (o desktop continua funcionando). No **primeiro login** de cada usuário, ela confere a senha do desktop e grava um **hash bcrypt** em `api_credencial`; daí em diante só o hash é usado. `PATCH /auth/senha` troca a senha da API (não a do desktop).
+- A senha nunca é retornada; login inválido e usuário inexistente recebem a mesma mensagem.
+- **Perfis:** o perfil vem de `cad_login_perfil`. Rotas sensíveis exigem o perfil **ADMINISTRADOR**: estorno de venda, ajuste manual de estoque, edição da empresa e listagem de usuários. (O campo `menu_options` do legado não tem mapa de significado, então não é usado.)
+
+---
+
+## 6. Padrão das respostas
+
+Sucesso:
+
+```json
+{ "data": { "id": 1, "nome": "..." } }
+```
+
+Listas paginadas (`?page=1&limit=20`, máximo 100):
+
+```json
+{ "data": [ ... ], "meta": { "page": 1, "limit": 20, "total": 321, "totalPages": 17 } }
+```
+
+Erro:
+
+```json
+{
+  "statusCode": 409,
+  "error": "Conflict",
+  "message": "Estoque insuficiente: TOALHA BANHO 29,99 (pedido: 3, disponível: 2)",
+  "path": "/api/v1/vendas",
+  "timestamp": "2026-11-04T14:00:00.000Z"
+}
+```
+
+| Código | Quando |
+|---|---|
+| 200 / 201 / 204 | Sucesso / criado / sem conteúdo (exclusão) |
+| 400 | Dados inválidos (mensagens em português, uma por campo); pagamentos que não fecham com o total |
+| 401 | Sem token, token inválido/expirado, login inválido |
+| 403 | Rota exclusiva do ADMINISTRADOR |
+| 404 | Registro não encontrado |
+| 409 | Conflito: estoque insuficiente, duplicidade, exclusão com vínculos, caixa fechado, venda já estornada |
+| 503 | Banco indisponível ou migrations pendentes |
+| 500 | Erro interno (detalhe só no log) |
+
+Datas são `AAAA-MM-DD`; valores em reais como número (`29.99`).
+
+---
+
+## 7. Endpoints
+
+Todos com prefixo `/api/v1`. Detalhes de cada campo no Swagger.
+
+| Método | Rota | Descrição |
+|---|---|---|
+| **Auth** |||
+| POST | `/auth/login` | Login (público) |
+| GET | `/auth/me` | Usuário autenticado |
+| PATCH | `/auth/senha` | Altera a senha da API |
+| GET | `/usuarios`, `/usuarios/:id` | Usuários (admin) |
+| **Empresa** |||
+| GET | `/empresa` | Dados da empresa |
+| PATCH | `/empresa` | Atualiza (admin) |
+| **Clientes** |||
+| GET | `/clientes?busca=` | Lista; busca por nome, CPF/CNPJ (com ou sem máscara), código ou id |
+| GET | `/clientes/:id` | Consulta |
+| POST | `/clientes` | Cadastra (código de barras gerado no padrão do desktop) |
+| PATCH | `/clientes/:id` | Atualiza |
+| DELETE | `/clientes/:id` | Exclui (409 se tiver vendas ou carnês) |
+| GET | `/clientes/:id/vendas` | Vendas do cliente |
+| **Fornecedores** |||
+| GET, POST | `/fornecedores` | Lista / cadastra |
+| GET, PATCH, DELETE | `/fornecedores/:id` | Consulta / atualiza / exclui (409 com vínculos) |
+| **Produtos** |||
+| GET | `/produtos?busca=&idFornecedor=&somenteDisponiveis=` | Lista com preços, saldo e lucro bruto |
+| GET | `/produtos/codigo/:codigoBarras` | Busca exata (leitor de código de barras) |
+| GET | `/produtos/estoque-baixo?limite=` | Saldo ≤ mínimo (ou ≤ limite) |
+| GET | `/produtos/tipos` | Categorias |
+| GET, POST | `/produtos/:id`, `/produtos` | Consulta / cadastra (cria saldo zerado) |
+| PATCH, DELETE | `/produtos/:id` | Atualiza / exclui (409 com vendas, movimentação ou saldo) |
+| **Estoque** |||
+| GET | `/estoque` | Saldos |
+| GET | `/estoque/:idProduto` | Saldo + últimas movimentações |
+| POST | `/estoque/entradas` | Nota de entrada (histórico + saldo + conta a pagar) |
+| POST | `/estoque/ajustes` | Ajuste manual com motivo (admin) |
+| GET | `/estoque/movimentacoes?inicio=&fim=&idProduto=&tipo=` | Entradas, trocas, ajustes e vendas |
+| **Vendas** |||
+| POST | `/vendas` | Registra a venda (transação) |
+| GET | `/vendas?inicio=&fim=&idCliente=&formaPagamento=&incluirEstornadas=` | Histórico |
+| GET | `/vendas/:id`, `/vendas/controle/:controle` | Detalhe com itens, trocas, pagamentos e parcelas |
+| POST | `/vendas/:id/estorno` | Estorna e devolve ao estoque (admin) |
+| **Carnês** |||
+| GET | `/carnes?idCliente=&situacao=ABERTA\|PAGA\|TODAS&vencidas=` | Parcelas |
+| GET | `/carnes/:codigo` | Parcela pelo código de 13 dígitos |
+| POST | `/carnes/baixa` | Recebe uma ou mais parcelas (juros/desconto opcionais) |
+| **Caixa** |||
+| GET | `/caixa/atual` | Caixa aberto do terminal + resumo (ou `null`) |
+| POST | `/caixa/abrir`, `/caixa/fechar` | Abre / fecha |
+| GET | `/caixa/historico`, `/caixa/:id` | Caixas anteriores |
+| **Relatórios** (`?inicio=&fim=`; padrão: mês corrente) |||
+| GET | `/relatorios/dashboard` | Faturamento, vendas, ticket médio, carnês, estoque baixo, comparativo com o período anterior |
+| GET | `/relatorios/faturamento?agrupar=dia\|mes` | Série de faturamento |
+| GET | `/relatorios/vendas-periodo`, `/relatorios/vendas-dia?data=` | Vendas com totais por forma |
+| GET | `/relatorios/formas-pagamento` | Participação de cada forma |
+| GET | `/relatorios/produtos-mais-vendidos?limite=&ordenarPor=` | Ranking de produtos |
+| GET | `/relatorios/vendas-por-cliente?limite=` | Ranking de clientes |
+| GET | `/relatorios/estoque-baixo` | Menor quantidade em estoque |
+| GET | `/relatorios/clientes-debito` | Clientes com carnê em aberto |
+| GET | `/relatorios/baixas-carne` | Parcelas recebidas |
+| GET | `/relatorios/mercadorias` | Entradas por nota e investimento |
+| GET | `/relatorios/movimentacoes` | Movimentações de estoque |
+| GET | `/health` | Saúde da API e do banco (público) |
+
+---
+
+## 8. Exemplos
+
+### Login
+
+```http
+POST /api/v1/auth/login
+{ "login": "ATRATIVA", "senha": "******" }
+```
+
+```json
+{
+  "data": {
+    "accessToken": "eyJhbGciOi...",
+    "tokenType": "Bearer",
+    "expiresAt": "2026-11-05T14:00:00.000Z",
+    "usuario": { "id": 1, "login": "ATRATIVA", "idPerfil": 1, "perfil": "ADMINISTRADOR", "administrador": true }
+  }
+}
+```
+
+### Venda com desconto e dois pagamentos
+
+```http
+POST /api/v1/vendas
+Authorization: Bearer <token>
+{
+  "idCliente": 175,
+  "itens": [
+    { "idProduto": 118, "quantidade": 1 },
+    { "idProduto": 444, "quantidade": 2, "precoUnitario": 17.5 }
+  ],
+  "desconto": 2,
+  "pagamentos": [
+    { "forma": "DINHEIRO", "valor": 20 },
+    { "forma": "CARNE", "valor": 49 }
+  ],
+  "parcelasCarne": 3
+}
+```
+
+- Sem `precoUnitario`, a API usa o **preço a prazo** do cadastro (aqui, 36,00 para o produto 118).
+- **Não envie totais**: a API calcula (36,00 + 2 × 17,50 − 2,00 = 69,00). Se a soma de `pagamentos` não bater, responde 400 mostrando o total correto.
+- Para troca, inclua `"itensTroca": [{ "idProduto": 119, "quantidade": 1 }]`: o valor é abatido e o item volta ao estoque.
+
+Resposta (resumida):
+
+```json
+{
+  "data": {
+    "id": 9871, "controle": "20261104143012", "data": "2026-11-04", "hora": "14:30:12",
+    "cliente": { "id": 175, "nome": "MARIA ..." },
+    "total": 69, "desconto": 2, "subtotalItens": 69, "creditoTroca": 0,
+    "pagamentos": { "dinheiro": 20, "pix": 0, "cartao": 0, "carne": 49, "cheque": 0, "ticket": 0 },
+    "formasPagamento": ["Dinheiro", "Carnê"],
+    "itens": [
+      { "idProduto": 118, "produto": "...", "quantidade": 1, "valorUnitario": 34.99, "valorTotal": 34.99 },
+      { "idProduto": 444, "produto": "...", "quantidade": 2, "valorUnitario": 17.01, "valorTotal": 34.01 }
+    ],
+    "itensTroca": [],
+    "parcelasCarne": [
+      { "codigo": "0411614300019", "parcela": 1, "vencimento": "2026-12-04", "valor": 16.33, "situacao": "ABERTA" },
+      { "codigo": "...", "parcela": 2, "vencimento": "2027-01-04", "valor": 16.33, "situacao": "ABERTA" },
+      { "codigo": "...", "parcela": 3, "vencimento": "2027-02-04", "valor": 16.34, "situacao": "ABERTA" }
+    ]
+  }
+}
+```
+
+O desconto de 2,00 foi rateado proporcionalmente (1,01 e 0,99) e a soma dos itens é exatamente o total. Como no desktop, `valorUnitario` é o total do item dividido pela quantidade, arredondado.
+
+### Entrada de mercadorias
+
+```http
+POST /api/v1/estoque/entradas
+{ "idFornecedor": 2, "itens": [{ "idProduto": 396, "quantidade": 12, "valorCompra": 14.5 }] }
+```
+
+### Baixa de carnê
+
+```http
+POST /api/v1/carnes/baixa
+{ "parcelas": [{ "codigo": "2108612020015", "juros": 2.5 }] }
+```
+
+---
+
+## 9. Regras de negócio
+
+### Venda (`POST /vendas`) — tudo numa transação MySQL
+
+1. Valida produtos (existem, não são item de serviço), cliente e caixa aberto.
+2. **Calcula no backend** em centavos: preço sugerido = **a prazo** (`vr_venda`), ou o editado pelo vendedor; desconto e acréscimo **rateados nos itens** (como o desktop, os itens são gravados com o valor líquido e somam exatamente o total); troca abatida.
+3. Desconto não pode passar do valor dos produtos nem de `cad_empresa.max_desc` (quando definido).
+4. Bloqueia os saldos (`SELECT … FOR UPDATE`) e confere o estoque **somando linhas repetidas do mesmo produto**.
+5. Grava `mv_vendas`, `mv_vendas_movimento` e `mv_financeiro`:
+   - dinheiro + Pix → 1 lançamento origem **V** (plano "Venda à vista");
+   - cartão → sem lançamento (igual ao desktop);
+   - carnê → 1 parcela por mês, origem **C**, código EAN-13 no padrão do desktop; 1º vencimento 30 dias após a venda (ou `primeiroVencimento`).
+6. Baixa o estoque com `UPDATE … WHERE quantidade >= ?`: **o estoque nunca fica negativo**, mesmo com o desktop vendendo ao mesmo tempo.
+7. Troca: o item devolvido volta ao estoque (registrado em `mv_estoque_historico` como o desktop faz).
+8. **Qualquer erro desfaz tudo (rollback).**
+
+### Estorno
+
+Lógico (`estornado = 1`, como no desktop). Devolve os itens ao estoque, retira de novo os itens recebidos em troca e marca os lançamentos financeiros como estornados. Bloqueado se alguma parcela do carnê já foi paga.
+
+### Estoque
+
+- Saldo só muda por entrada de nota, ajuste, venda, troca ou estorno — **sempre com registro** no histórico. `PATCH /produtos` não altera quantidade.
+- Ajuste negativo (perda, avaria...) é gravado com quantidade negativa e `numerodanota = "AJ-<MOTIVO>"`.
+- Entrada de nota gera conta a pagar em `mv_financeiro` (origem E, plano "Compra de mercadoria"), como o desktop.
+- **Estoque baixo:** saldo ≤ `min_estoque`; como nenhum produto tem mínimo cadastrado hoje, usa `ESTOQUE_BAIXO_LIMITE` ou `?limite=`.
+
+### Exclusões
+
+O banco não tem chaves estrangeiras, então a API protege o histórico: cliente com vendas/carnês, produto com vendas/movimentação/saldo e fornecedor com produtos/entradas **não podem ser excluídos (409)**.
+
+### Duplicidade
+
+Nome de produto e de fornecedor (UNIQUE no banco), código de barras do produto e CPF/CNPJ do cliente (verificado pela API, sem máscara) não podem se repetir (409).
+
+---
+
+## 10. Testes
+
+```bash
+npm test                                 # unitários (não precisam de banco)
+npm run test:e2e                         # inicialização da API + fluxo completo (este, só com banco de teste)
+```
+
+- **Unitários (64 testes):** cálculo da venda (rateio, troca, pagamentos, limites), venda com banco simulado (baixa de estoque, estoque insuficiente sem gravar nada, rollback com concorrência, carnê, troca, cartão sem financeiro, bloqueio em MyISAM), autenticação (migração da senha legada, bcrypt, token), operações de saldo, relatórios, códigos e datas **conferidos contra registros reais do banco**.
+- **Inicialização (`test/inicializacao.e2e-spec.ts`):** sobe o `AppModule` real com banco simulado e confere guards (401), validação (400 em português), envelope de resposta e o documento Swagger.
+- **Fluxo completo (`test/api.e2e-spec.ts`):** contra um **MySQL de teste real**: cadastro, entrada, venda, estoque insuficiente (409 sem gravar), total errado (400), estorno, carnê, baixa e relatórios. Para rodar:
+
+```bash
+# banco separado com o dump e as migrations
+docker exec atrativa-mysql mysql -uroot -proot -e "CREATE DATABASE atrativa_teste; GRANT ALL ON atrativa_teste.* TO 'atrativa'@'%';"
+docker exec atrativa-mysql sh -c "mysql -uroot -proot --default-character-set=latin1 atrativa_teste < /tmp/bd.sql"
+DB_DATABASE=atrativa_teste npm run migration:run
+# no .env: E2E_DB_DATABASE=atrativa_teste e E2E_SENHA=<senha do usuário ATRATIVA>
+npm run test:e2e
+```
+
+O teste e2e **se recusa a rodar** se `E2E_DB_DATABASE` for igual a `DB_DATABASE`.
+
+---
+
+## 11. Integração com o frontend
+
+- CORS liberado para `CORS_ORIGINS` (padrão: Vite em `http://localhost:5173`).
+- No frontend, use uma variável `VITE_API_URL=http://localhost:3000/api/v1` e envie o token em `Authorization`.
+- Correspondência de campos com as telas atuais:
+
+| Tela | Campo da tela | Campo da API |
+|---|---|---|
+| Login | E-mail | `login` (o banco não tem e-mail) |
+| Clientes | Código / Código Postal / Data de Aniversário | `codigo` / `cep` / `dataAniversario` |
+| Clientes | Faixa Salarial | `faixaSalarial` (número em reais) |
+| Produtos | Valor à Vista / à Prazo / Lucro Bruto | `precoVista` / `precoPrazo` / `lucroBrutoPercentual` (calculado) |
+| Produtos | Valor Mínimo de Estoque / Fornecedor | `estoqueMinimo` / `idFornecedor` (`GET /fornecedores`) |
+| Vendas | Dinheiro, Pix, Cartão, Carnê | `pagamentos[].forma`: `DINHEIRO`, `PIX`, `CARTAO`, `CARNE` |
+| Vendas | Realizar Troca | `itensTroca` |
+| Carnês | Número da Parcela / Valor Total da Compra | `numeroParcela` ("1/5") / `valorTotalCompra` |
+| Caixa | Dinheiro, Pix, Cartão, Carnês, Total | `GET /caixa/atual` → `resumo` |
+
+---
+
+## 12. Limitações conhecidas
+
+- **Empresa única:** o banco não tem `id_empresa`; não há cadastro/exclusão de empresas.
+- **Forma de pagamento do recebimento de carnê** não é guardada pelo banco (o desktop grava só o valor); o caixa a considera dinheiro.
+- **Vendas não têm hora no banco**, só data; a hora exibida vem do `controle`.
+- **Valor para o próximo dia** no fechamento de caixa não tem coluna no banco; é só devolvido na resposta.
+- `modo_lancamento` (0/2/3) e `modo_venda = 3` não têm significado documentado; a API grava 0 (vendas) e 2 (trocas), como o desktop.
+- Textos antigos com acentos em CP850 aparecem com caracteres trocados (ex.: `CARNÒ`); a API não altera dados existentes.
+- A API exige MySQL 5.7+ (o protocolo do MySQL 4.0 não é suportado pelo driver). Para usar API e desktop juntos, os dois precisam apontar para o mesmo servidor MySQL 8.
