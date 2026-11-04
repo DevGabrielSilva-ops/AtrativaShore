@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { definirToken, quandoSessaoExpirar } from '../services/api';
+import { definirRenovador, definirToken, quandoSessaoExpirar } from '../services/api';
 import { authService } from '../services/servicos';
-import type { UsuarioAutenticado } from '../types/api';
+import type { Permissao, RespostaLogin, UsuarioAutenticado } from '../types/api';
 
 interface Sessao {
   token: string;
@@ -16,94 +16,130 @@ interface ValorAuth {
   autenticado: boolean;
   carregando: boolean;
   motivoSaida: MotivoSaida;
-  entrar: (login: string, senha: string, manterConectado: boolean) => Promise<void>;
+  plataforma: boolean;
+  entrar: (login: string, senha: string, lembrar: boolean) => Promise<UsuarioAutenticado>;
   sair: (motivo?: MotivoSaida) => void;
+  aplicarSessao: (resposta: RespostaLogin) => void;
+  pode: (...permissoes: Permissao[]) => boolean;
 }
 
-const CHAVE = 'atrativa.sessao';
 const AuthContexto = createContext<ValorAuth | null>(null);
 
-function lerSessao(): Sessao | null {
-  for (const armazenamento of [sessionStorage, localStorage]) {
-    try {
-      const bruto = armazenamento.getItem(CHAVE);
-      if (!bruto) continue;
-      const sessao = JSON.parse(bruto) as Sessao;
-      if (sessao?.token && Date.parse(sessao.expiresAt) > Date.now()) return sessao;
-      armazenamento.removeItem(CHAVE);
-    } catch {}
-  }
-  return null;
+let restauracao: Promise<RespostaLogin | null> | null = null;
+
+function esperar(ms: number) {
+  return new Promise((resolver) => setTimeout(resolver, ms));
 }
 
-function limparSessao(): void {
-  for (const armazenamento of [sessionStorage, localStorage]) {
+async function renovarComRetentativa(): Promise<RespostaLogin | null> {
+  try {
+    return await authService.renovar();
+  } catch {
+    await esperar(400);
     try {
-      armazenamento.removeItem(CHAVE);
-    } catch {}
+      return await authService.renovar();
+    } catch {
+      return null;
+    }
   }
+}
+
+function restaurarUmaVez(): Promise<RespostaLogin | null> {
+  restauracao ??= renovarComRetentativa().finally(() => {
+    restauracao = null;
+  });
+  return restauracao;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [sessao, setSessao] = useState<Sessao | null>(() => {
-    const salva = lerSessao();
-    definirToken(salva?.token ?? null);
-    return salva;
-  });
-  const [carregando, setCarregando] = useState(() => sessao !== null);
+  const [sessao, setSessao] = useState<Sessao | null>(null);
+  const [carregando, setCarregando] = useState(true);
   const [motivoSaida, setMotivoSaida] = useState<MotivoSaida>(null);
   const temporizador = useRef<number | undefined>(undefined);
 
-  const sair = useCallback((motivo: MotivoSaida = 'manual') => {
-    limparSessao();
+  const aplicarSessao = useCallback((resposta: RespostaLogin) => {
+    definirToken(resposta.accessToken);
+    setSessao({ token: resposta.accessToken, expiresAt: resposta.expiresAt, usuario: resposta.usuario });
+  }, []);
+
+  const limpar = useCallback((motivo: MotivoSaida) => {
     definirToken(null);
     setSessao(null);
     setMotivoSaida(motivo);
   }, []);
 
-  useEffect(() => {
-    quandoSessaoExpirar(() => sair('expirada'));
-  }, [sair]);
+  const sair = useCallback(
+    (motivo: MotivoSaida = 'manual') => {
+      if (motivo === 'manual') void authService.sair().catch(() => undefined);
+      limpar(motivo);
+    },
+    [limpar],
+  );
 
   useEffect(() => {
-    if (!sessao || !carregando) return;
-    authService
-      .me()
-      .then((usuario) => setSessao((atual) => (atual ? { ...atual, usuario } : atual)))
-      .catch(() => sair('expirada'))
-      .finally(() => setCarregando(false));
-  }, [sessao, carregando, sair]);
+    quandoSessaoExpirar(() => limpar('expirada'));
+    definirRenovador(async () => {
+      const resposta = await restaurarUmaVez();
+      if (!resposta) return null;
+      aplicarSessao(resposta);
+      return resposta.accessToken;
+    });
+  }, [limpar, aplicarSessao]);
+
+  useEffect(() => {
+    let ativo = true;
+    restaurarUmaVez().then((resposta) => {
+      if (!ativo) return;
+      if (resposta) aplicarSessao(resposta);
+      setCarregando(false);
+    });
+    return () => {
+      ativo = false;
+    };
+  }, [aplicarSessao]);
 
   useEffect(() => {
     window.clearTimeout(temporizador.current);
     if (!sessao) return;
-    const restante = Date.parse(sessao.expiresAt) - Date.now();
-    temporizador.current = window.setTimeout(() => sair('expirada'), Math.max(0, Math.min(restante, 2_147_000_000)));
+    const restante = Date.parse(sessao.expiresAt) - Date.now() - 60_000;
+    temporizador.current = window.setTimeout(
+      () => {
+        void restaurarUmaVez().then((resposta) => (resposta ? aplicarSessao(resposta) : limpar('expirada')));
+      },
+      Math.max(5_000, Math.min(restante, 2_147_000_000)),
+    );
     return () => window.clearTimeout(temporizador.current);
-  }, [sessao, sair]);
+  }, [sessao, aplicarSessao, limpar]);
 
-  const entrar = useCallback(async (login: string, senha: string, manterConectado: boolean) => {
-    const resposta = await authService.login(login, senha);
-    const nova: Sessao = { token: resposta.accessToken, expiresAt: resposta.expiresAt, usuario: resposta.usuario };
-    limparSessao();
-    try {
-      (manterConectado ? localStorage : sessionStorage).setItem(CHAVE, JSON.stringify(nova));
-    } catch {}
-    definirToken(nova.token);
-    setMotivoSaida(null);
-    setSessao(nova);
-  }, []);
+  const entrar = useCallback(
+    async (login: string, senha: string, lembrar: boolean) => {
+      const resposta = await authService.login(login, senha, lembrar);
+      setMotivoSaida(null);
+      aplicarSessao(resposta);
+      return resposta.usuario;
+    },
+    [aplicarSessao],
+  );
+
+  const usuario = sessao?.usuario ?? null;
+  const pode = useCallback(
+    (...permissoes: Permissao[]) => !!usuario && permissoes.every((p) => usuario.permissoes.includes(p)),
+    [usuario],
+  );
 
   const valor = useMemo<ValorAuth>(
     () => ({
-      usuario: sessao?.usuario ?? null,
+      usuario,
       autenticado: sessao !== null,
       carregando,
       motivoSaida,
+      plataforma: usuario?.papel === 'SUPER_ADMIN',
       entrar,
       sair,
+      aplicarSessao,
+      pode,
     }),
-    [sessao, carregando, motivoSaida, entrar, sair],
+    [usuario, sessao, carregando, motivoSaida, entrar, sair, aplicarSessao, pode],
   );
 
   return <AuthContexto.Provider value={valor}>{children}</AuthContexto.Provider>;

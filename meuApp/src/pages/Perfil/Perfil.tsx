@@ -6,15 +6,16 @@ import { Detalhes, PageHeader, Painel } from '../../components/ui/Layout';
 import { useAuth } from '../../contexts/AuthContext';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { useRequisicao } from '../../hooks/useRequisicao';
-import { authService, empresaService } from '../../services/servicos';
-import { formatarDocumento } from '../../utils/formatar';
+import { authService, funcionarioService } from '../../services/servicos';
+import { formatarDataHora } from '../../utils/formatar';
+import { ROTULOS_PAPEL } from '../compartilhado';
 
 export default function Perfil() {
-  const { usuario, sair } = useAuth();
+  const { usuario, sair, plataforma, pode } = useAuth();
   const { confirmar } = useFeedback();
   const navegar = useNavigate();
   const eu = useRequisicao(() => authService.me(), []);
-  const empresa = useRequisicao(() => empresaService.obter(), []);
+  const catalogo = useRequisicao(() => funcionarioService.catalogo(), [], !plataforma && pode('funcionarios.consultar'));
   const u = eu.dados ?? usuario;
 
   const sairAgora = async () => {
@@ -24,43 +25,52 @@ export default function Perfil() {
     }
   };
 
+  const descricoes = new Map(catalogo.dados?.permissoes.map((p) => [p.id, p.descricao]));
+
   return (
     <>
-      <PageHeader titulo="Meu perfil" descricao="Seus dados de acesso ao sistema." />
+      <PageHeader titulo="Meu perfil" descricao="Seus dados de acesso e o que o seu cargo permite fazer." />
       <div className="grade-2">
-        <Painel
-          titulo="Usuário"
-          acoes={u?.administrador ? <Badge tom="marca">Administrador</Badge> : <Badge>{u?.perfil ?? 'Usuário'}</Badge>}
-        >
+        <Painel titulo={u?.nome ?? 'Usuário'} acoes={u ? <Badge tom="marca">{u.cargo ?? ROTULOS_PAPEL[u.papel]}</Badge> : null}>
           <Detalhes
             itens={[
-              { rotulo: 'Login', valor: u?.login },
-              { rotulo: 'Perfil de acesso', valor: u?.perfil },
-              { rotulo: 'Código do usuário', valor: u?.id },
-              {
-                rotulo: 'Permissões especiais',
-                valor: u?.administrador ? 'Estornar vendas, ajustar estoque, editar empresa' : 'Nenhuma',
-              },
+              { rotulo: 'E-mail', valor: u?.email },
+              { rotulo: 'Usuário de acesso', valor: u?.login },
+              { rotulo: 'Papel', valor: u ? ROTULOS_PAPEL[u.papel] : null },
+              { rotulo: 'Cargo', valor: u?.cargo ?? 'Padrão do papel' },
+              { rotulo: 'Empresa', valor: u?.empresa?.nome ?? 'Administração da plataforma' },
             ]}
           />
           <div className="form-acoes">
             <Button variante="fantasma" icone={<IoLogOutOutline />} onClick={sairAgora}>
               Sair
             </Button>
-            <Link to="/configuracoes" className="btn btn-secundario btn-md">
+            <Link to={plataforma ? '/plataforma/senha' : '/configuracoes'} className="btn btn-secundario btn-md">
               <IoKeyOutline aria-hidden /> Alterar senha
             </Link>
           </div>
         </Painel>
-        <Painel titulo="Empresa" acoes={<Link to="/empresa" className="link-pequeno">Ver dados</Link>}>
-          <Detalhes
-            itens={[
-              { rotulo: 'Nome', valor: empresa.dados?.nome },
-              { rotulo: 'CNPJ/CPF', valor: formatarDocumento(empresa.dados?.cnpj) },
-              { rotulo: 'Cidade', valor: empresa.dados?.cidade ? `${empresa.dados.cidade}/${empresa.dados.uf ?? ''}` : null },
-            ]}
-          />
-        </Painel>
+        {!plataforma ? (
+          <Painel titulo="Permissões" descricao="Definidas pelo administrador da empresa. Peça a ele se precisar de outro acesso.">
+            {u?.permissoes.length ? (
+              <ul className="lista-permissoes">
+                {u.permissoes.map((p) => (
+                  <li key={p}>{descricoes.get(p) ?? p}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted pequeno">Nenhuma permissão comercial.</p>
+            )}
+          </Painel>
+        ) : (
+          <Painel titulo="Acesso">
+            <p className="muted pequeno">
+              Superadministrador: gerencia empresas, códigos de ativação, planos e administradores. Não acessa os dados
+              comerciais das empresas.
+            </p>
+            {eu.dados ? <p className="pequeno muted">Sessão atualizada em {formatarDataHora(new Date().toISOString())}.</p> : null}
+          </Painel>
+        )}
       </div>
     </>
   );

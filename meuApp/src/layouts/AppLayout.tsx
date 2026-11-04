@@ -10,9 +10,7 @@ import {
 } from 'react-icons/io5';
 import { useAuth } from '../contexts/AuthContext';
 import { useFeedback } from '../contexts/FeedbackContext';
-import { useRequisicao } from '../hooks/useRequisicao';
-import { empresaService } from '../services/servicos';
-import { itemDaRota, MENU } from './navegacao';
+import { itemDaRota, MENU, MENU_PLATAFORMA, menuDoUsuario } from './navegacao';
 import './layout.css';
 
 function iniciais(texto: string): string {
@@ -24,7 +22,15 @@ function iniciais(texto: string): string {
     .join('');
 }
 
-export function AppLayout() {
+const ROTULO_PAPEL = {
+  SUPER_ADMIN: 'Superadministrador',
+  COMPANY_ADMIN: 'Administrador',
+  MANAGER: 'Gerente',
+  SELLER: 'Vendedor',
+  STOCK_OPERATOR: 'Estoquista',
+} as const;
+
+export function AppLayout({ area = 'empresa' }: { area?: 'empresa' | 'plataforma' }) {
   const { usuario, sair } = useAuth();
   const { confirmar } = useFeedback();
   const local = useLocation();
@@ -32,9 +38,10 @@ export function AppLayout() {
   const [menuAberto, setMenuAberto] = useState(false);
   const [perfilAberto, setPerfilAberto] = useState(false);
   const menuPerfil = useRef<HTMLDivElement>(null);
-  const empresa = useRequisicao(() => empresaService.obter(), []);
-
-  const atual = itemDaRota(local.pathname);
+  const base = area === 'plataforma' ? MENU_PLATAFORMA : MENU;
+  const menu = menuDoUsuario(base, usuario?.permissoes ?? []);
+  const atual = itemDaRota(local.pathname, base);
+  const prefixo = area === 'plataforma' ? '/plataforma' : '';
 
   const [rotaAnterior, setRotaAnterior] = useState(local.pathname);
   if (rotaAnterior !== local.pathname) {
@@ -70,7 +77,7 @@ export function AppLayout() {
   };
 
   return (
-    <div className={menuAberto ? 'app app-menu-aberto' : 'app'}>
+    <div className={`${menuAberto ? 'app app-menu-aberto' : 'app'}${area === 'plataforma' ? ' app-plataforma' : ''}`}>
       <a href="#conteudo" className="pular-link">
         Pular para o conteúdo
       </a>
@@ -78,12 +85,13 @@ export function AppLayout() {
       <aside className="sidebar nao-imprimir" aria-label="Menu principal">
         <div className="sidebar-topo">
           <img src="/logo.svg" alt="Atrativa Shore" className="sidebar-logo" />
+          {area === 'plataforma' ? <span className="sidebar-area">Administração</span> : null}
           <button type="button" className="btn btn-fantasma btn-icone btn-sm so-celular" onClick={() => setMenuAberto(false)} aria-label="Fechar menu">
             <IoClose size={20} />
           </button>
         </div>
         <nav className="sidebar-nav">
-          {MENU.map((grupo) => (
+          {menu.map((grupo) => (
             <div key={grupo.titulo} className="sidebar-grupo">
               <p className="sidebar-grupo-titulo">{grupo.titulo}</p>
               <ul>
@@ -129,8 +137,8 @@ export function AppLayout() {
             ) : null}
           </div>
           <div className="topo-direita">
-            <span className="topo-empresa" title="Empresa">
-              {empresa.dados?.nome ?? (empresa.carregando ? '' : 'Empresa')}
+            <span className="topo-empresa" title={area === 'plataforma' ? 'Área' : 'Empresa'}>
+              {area === 'plataforma' ? 'Plataforma Atrativa Shore' : (usuario?.empresa?.nome ?? '')}
             </span>
             <div className="perfil" ref={menuPerfil}>
               <button
@@ -141,22 +149,24 @@ export function AppLayout() {
                 onClick={() => setPerfilAberto((aberto) => !aberto)}
               >
                 <span className="avatar" aria-hidden>
-                  {iniciais(usuario?.login ?? '?')}
+                  {iniciais(usuario?.nome ?? '?')}
                 </span>
                 <span className="perfil-texto">
-                  <strong>{usuario?.login}</strong>
-                  <span>{usuario?.perfil ?? 'Usuário'}</span>
+                  <strong>{usuario?.nome}</strong>
+                  <span>{usuario ? (usuario.cargo ?? ROTULO_PAPEL[usuario.papel]) : ''}</span>
                 </span>
                 <IoChevronDown size={14} aria-hidden />
               </button>
               {perfilAberto ? (
                 <div className="perfil-menu" role="menu">
-                  <button type="button" role="menuitem" onClick={() => navegar('/perfil')}>
+                  <button type="button" role="menuitem" onClick={() => navegar(`${prefixo}/perfil`)}>
                     <IoPersonCircleOutline size={18} aria-hidden /> Meu perfil
                   </button>
-                  <button type="button" role="menuitem" onClick={() => navegar('/configuracoes')}>
-                    <IoSettingsOutline size={18} aria-hidden /> Configurações
-                  </button>
+                  {area === 'empresa' ? (
+                    <button type="button" role="menuitem" onClick={() => navegar('/configuracoes')}>
+                      <IoSettingsOutline size={18} aria-hidden /> Configurações
+                    </button>
+                  ) : null}
                   <hr />
                   <button type="button" role="menuitem" className="perfil-sair" onClick={pedirSaida}>
                     <IoLogOutOutline size={18} aria-hidden /> Sair

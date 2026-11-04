@@ -78,3 +78,11 @@ export function numeroParaCampo(valor: number | null | undefined, casas = 2): st
 export function somarReais(valores: number[]): number {
   return valores.reduce((total, valor) => total + Math.round(valor * 100), 0) / 100;
 }
+
+const dataHora = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+
+export function formatarDataHora(valor: string | null | undefined): string {
+  if (!valor) return '—';
+  const data = new Date(/[zZ]|[+-]\d{2}:\d{2}$/.test(valor) ? valor : valor.replace(' ', 'T'));
+  return Number.isNaN(data.getTime()) ? valor : dataHora.format(data);
+}

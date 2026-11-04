@@ -17,11 +17,50 @@ export interface Periodo {
 
 export type FormaPagamento = 'DINHEIRO' | 'PIX' | 'CARTAO' | 'CARNE';
 
+export type Papel = 'SUPER_ADMIN' | 'COMPANY_ADMIN' | 'MANAGER' | 'SELLER' | 'STOCK_OPERATOR';
+export type PapelEmpresa = Exclude<Papel, 'SUPER_ADMIN'>;
+export type StatusEmpresa = 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'EXPIRED';
+export type StatusUsuario = 'ACTIVE' | 'INACTIVE';
+
+export type Permissao =
+  | 'dashboard.ver'
+  | 'vendas.registrar'
+  | 'vendas.consultar'
+  | 'vendas.consultar_todas'
+  | 'vendas.estornar'
+  | 'caixa.operar'
+  | 'carnes.consultar'
+  | 'carnes.receber'
+  | 'clientes.consultar'
+  | 'clientes.gerenciar'
+  | 'clientes.excluir'
+  | 'fornecedores.consultar'
+  | 'fornecedores.gerenciar'
+  | 'produtos.consultar'
+  | 'produtos.gerenciar'
+  | 'estoque.consultar'
+  | 'estoque.entrada'
+  | 'estoque.ajuste'
+  | 'relatorios.vendas'
+  | 'relatorios.estoque'
+  | 'funcionarios.consultar'
+  | 'funcionarios.gerenciar'
+  | 'empresa.configurar'
+  | 'auditoria.consultar';
+
 export interface UsuarioAutenticado {
   id: number;
-  login: string;
-  idPerfil: number;
-  perfil: string | null;
+  nome: string;
+  email: string | null;
+  login: string | null;
+  papel: Papel;
+  idCargo: number | null;
+  cargo: string | null;
+  permissoes: Permissao[];
+  idEmpresa: number | null;
+  empresa: { id: number; nome: string; status: StatusEmpresa } | null;
+  idLogin: number | null;
+  trocarSenha: boolean;
   administrador: boolean;
 }
 
@@ -30,6 +69,160 @@ export interface RespostaLogin {
   tokenType: 'Bearer';
   expiresAt: string;
   usuario: UsuarioAutenticado;
+}
+
+export interface Funcionario {
+  id: number;
+  nome: string;
+  email: string | null;
+  login: string | null;
+  papel: PapelEmpresa;
+  papelRotulo: string;
+  cargo: { id: number; nome: string } | null;
+  permissoes: Permissao[];
+  status: StatusUsuario;
+  trocarSenha: boolean;
+  ultimoLoginEm: string | null;
+  criadoEm: string;
+  idLogin: number | null;
+}
+
+export interface FuncionarioEntrada {
+  nome: string;
+  email?: string | null;
+  login?: string | null;
+  papel: PapelEmpresa;
+  idCargo?: number | null;
+  senha?: string;
+}
+
+export interface Cargo {
+  id: number;
+  idEmpresa: number;
+  nome: string;
+  papelBase: PapelEmpresa;
+  permissoes: Permissao[];
+  criadoEm: string;
+  funcionarios?: number;
+}
+
+export interface CatalogoPermissoes {
+  papeis: Array<{ id: PapelEmpresa; rotulo: string; permissoes: Permissao[] }>;
+  permissoes: Array<{ id: Permissao; grupo: string; descricao: string }>;
+}
+
+export interface RegistroAuditoria {
+  id: string;
+  dataHora: string;
+  acao: string;
+  entidade: string | null;
+  idEntidade: string | null;
+  detalhes: Record<string, unknown> | null;
+  ip: string | null;
+  idEmpresa: number | null;
+  usuario: { id: number; nome: string } | null;
+}
+
+export type TipoCodigo = 'NOVA_EMPRESA' | 'EMPRESA_EXISTENTE';
+export type SituacaoCodigo = 'ATIVO' | 'USADO' | 'EXPIRADO' | 'REVOGADO';
+
+export interface CodigoAtivacao {
+  id: number;
+  prefixo: string;
+  tipo: TipoCodigo;
+  idEmpresa: number | null;
+  emailDestinatario: string | null;
+  observacao: string | null;
+  maxUsos: number;
+  usos: number;
+  expiraEm: string;
+  revogadoEm: string | null;
+  ultimoUsoEm: string | null;
+  criadoEm: string;
+  situacao: SituacaoCodigo;
+  empresa?: { id: number; nome: string | null } | null;
+}
+
+export interface CodigoGerado extends CodigoAtivacao {
+  codigo: string;
+}
+
+export interface Plano {
+  id: number;
+  nome: string;
+  descricao: string | null;
+  maxFuncionarios: number | null;
+  ativo: boolean;
+  criadoEm: string;
+}
+
+export interface EmpresaPlataforma {
+  id: number;
+  nome: string;
+  cnpj: string | null;
+  email: string | null;
+  telefone: string | null;
+  cidade: string | null;
+  uf: string | null;
+  status: StatusEmpresa;
+  motivoStatus: string | null;
+  plano: { id: number; nome: string } | null;
+  assinaturaAte: string | null;
+  bancoProvisionado: boolean;
+  usuarios: number;
+  usuariosAtivos: number;
+  criadaEm: string;
+  ativadaEm: string | null;
+  suspensaEm: string | null;
+}
+
+export interface EmpresaPlataformaDetalhe extends EmpresaPlataforma {
+  administradores: Array<{ id: number; nome: string; email: string | null; login: string | null; status: StatusUsuario; ultimoLoginEm: string | null }>;
+  funcionariosPorPapel: Partial<Record<PapelEmpresa, number>>;
+  ativacoes: Array<{ id: number; dataHora: string; usuario: string }>;
+  codigos: CodigoAtivacao[];
+}
+
+export interface IndicadoresPlataforma {
+  empresas: { total: number } & Record<StatusEmpresa, number>;
+  usuarios: { total: number; ativos: number; porPapel: Partial<Record<PapelEmpresa, number>> };
+  ativacoes: number;
+  codigosAtivos: number;
+  empresasRecentes: EmpresaPlataforma[];
+}
+
+export interface AdministradorPlataforma {
+  id: number;
+  nome: string;
+  email: string | null;
+  status: StatusUsuario;
+  trocarSenha: boolean;
+  ultimoLoginEm: string | null;
+  criadoEm: string;
+}
+
+export interface ValidacaoCodigo {
+  tipo: TipoCodigo;
+  expiraEm: string;
+  empresa: { nome: string } | null;
+  emailDestinatario: string | null;
+}
+
+export interface ConclusaoAtivacao {
+  empresa: { id: number; nome: string };
+  usuario: { id: number; nome: string; email: string | null; login: string | null };
+}
+
+export interface EstadoBancoEmpresa {
+  status: string;
+  banco: string;
+  migrations: {
+    tabelasInnodb: boolean;
+    tabelasAindaMyisam: string[];
+    apiCredencial: boolean;
+    colunaVrPix: boolean;
+    colunaLimiteCarne: boolean;
+  };
 }
 
 export interface Empresa {
@@ -425,11 +618,5 @@ export interface Mercadorias extends Paginado<Mercadoria> {
 export interface Saude {
   status: string;
   banco: string;
-  migrations: {
-    tabelasInnodb: boolean;
-    tabelasAindaMyisam: string[];
-    apiCredencial: boolean;
-    colunaVrPix: boolean;
-    colunaLimiteCarne: boolean;
-  };
+  plataformaMigrada: boolean;
 }

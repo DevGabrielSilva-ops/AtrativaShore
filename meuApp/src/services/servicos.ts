@@ -33,6 +33,27 @@ import type {
   VendasPeriodo,
   VendasPorCliente,
   CreditoCarne,
+  AdministradorPlataforma,
+  Cargo,
+  CatalogoPermissoes,
+  CodigoAtivacao,
+  CodigoGerado,
+  ConclusaoAtivacao,
+  EmpresaPlataforma,
+  EmpresaPlataformaDetalhe,
+  EstadoBancoEmpresa,
+  Funcionario,
+  FuncionarioEntrada,
+  IndicadoresPlataforma,
+  PapelEmpresa,
+  Permissao,
+  Plano,
+  RegistroAuditoria,
+  SituacaoCodigo,
+  StatusEmpresa,
+  StatusUsuario,
+  TipoCodigo,
+  ValidacaoCodigo,
 } from '../types/api';
 import { api } from './api';
 
@@ -47,14 +68,94 @@ export interface FiltroPeriodo {
 }
 
 export const authService = {
-  login: (login: string, senha: string) =>
-    api.post<RespostaLogin>('/auth/login', { login, senha }, { ignorarSessaoExpirada: true }),
+  login: (login: string, senha: string, lembrar: boolean) =>
+    api.post<RespostaLogin>('/auth/login', { login, senha, lembrar }, { ignorarSessaoExpirada: true }),
+  renovar: () => api.post<RespostaLogin>('/auth/refresh', {}, { ignorarSessaoExpirada: true, semRenovar: true }),
+  sair: () => api.post<void>('/auth/logout', {}, { ignorarSessaoExpirada: true, semRenovar: true }),
   me: () => api.get<UsuarioAutenticado>('/auth/me'),
-  alterarSenha: (senhaAtual: string, novaSenha: string) => api.patch<void>('/auth/senha', { senhaAtual, novaSenha }),
+  alterarSenha: (senhaAtual: string, novaSenha: string) =>
+    api.patch<RespostaLogin>('/auth/senha', { senhaAtual, novaSenha }),
 };
 
 export const saudeService = {
   verificar: () => api.get<Saude>('/health'),
+  estadoEmpresa: () => api.get<EstadoBancoEmpresa>('/empresa/estado-banco'),
+};
+
+export interface FiltroAuditoria extends Pagina, FiltroPeriodo {
+  idUsuario?: number;
+  acao?: string;
+}
+
+export const ativacaoService = {
+  validar: (codigo: string) =>
+    api.post<ValidacaoCodigo>('/ativacao/validar', { codigo }, { ignorarSessaoExpirada: true, semRenovar: true }),
+  concluir: (dados: {
+    codigo: string;
+    responsavel: { nome: string; email: string; login?: string; senha: string };
+    empresa?: Record<string, string | undefined>;
+  }) => api.post<ConclusaoAtivacao>('/ativacao/concluir', dados, { ignorarSessaoExpirada: true, semRenovar: true }),
+};
+
+export const funcionarioService = {
+  catalogo: () => api.get<CatalogoPermissoes>('/funcionarios/catalogo'),
+  listar: (filtro: Pagina & { busca?: string; status?: StatusUsuario; papel?: PapelEmpresa } = {}) =>
+    api.get<Paginado<Funcionario>>('/funcionarios', { ...filtro }),
+  criar: (dados: FuncionarioEntrada) =>
+    api.post<{ funcionario: Funcionario; senhaTemporaria: string | null }>('/funcionarios', dados),
+  atualizar: (id: number, dados: Partial<FuncionarioEntrada>) => api.patch<Funcionario>(`/funcionarios/${id}`, dados),
+  alterarStatus: (id: number, status: StatusUsuario) => api.post<Funcionario>(`/funcionarios/${id}/status`, { status }),
+  senhaTemporaria: (id: number) => api.post<{ senhaTemporaria: string }>(`/funcionarios/${id}/senha-temporaria`),
+  atividades: (id: number, filtro: FiltroAuditoria = {}) =>
+    api.get<Paginado<RegistroAuditoria>>(`/funcionarios/${id}/atividades`, { ...filtro }),
+  cargos: () => api.get<Cargo[]>('/cargos'),
+  criarCargo: (dados: { nome: string; papelBase: PapelEmpresa; permissoes: Permissao[] }) => api.post<Cargo>('/cargos', dados),
+  atualizarCargo: (id: number, dados: { nome: string; papelBase: PapelEmpresa; permissoes: Permissao[] }) =>
+    api.patch<Cargo>(`/cargos/${id}`, dados),
+  removerCargo: (id: number) => api.delete(`/cargos/${id}`),
+};
+
+export const auditoriaService = {
+  listar: (filtro: FiltroAuditoria = {}) => api.get<Paginado<RegistroAuditoria>>('/auditoria', { ...filtro }),
+};
+
+export const plataformaService = {
+  indicadores: () => api.get<IndicadoresPlataforma>('/plataforma/indicadores'),
+  empresas: (filtro: Pagina & { busca?: string; status?: StatusEmpresa } = {}) =>
+    api.get<Paginado<EmpresaPlataforma>>('/plataforma/empresas', { ...filtro }),
+  empresa: (id: number) => api.get<EmpresaPlataformaDetalhe>(`/plataforma/empresas/${id}`),
+  criarEmpresa: (dados: Record<string, string | number | null | undefined>) =>
+    api.post<EmpresaPlataforma>('/plataforma/empresas', dados),
+  atualizarEmpresa: (id: number, dados: { nome?: string; idPlano?: number; assinaturaAte?: string | null }) =>
+    api.patch<EmpresaPlataforma>(`/plataforma/empresas/${id}`, dados),
+  alterarStatus: (id: number, dados: { status: 'ACTIVE' | 'SUSPENDED'; motivo?: string; assinaturaAte?: string }) =>
+    api.post<EmpresaPlataforma>(`/plataforma/empresas/${id}/status`, dados),
+  senhaUsuario: (idEmpresa: number, idUsuario: number) =>
+    api.post<{ senhaTemporaria: string }>(`/plataforma/empresas/${idEmpresa}/usuarios/${idUsuario}/senha-temporaria`),
+  planos: () => api.get<Plano[]>('/plataforma/planos'),
+  criarPlano: (dados: { nome: string; descricao?: string; maxFuncionarios?: number | null; ativo?: boolean }) =>
+    api.post<Plano>('/plataforma/planos', dados),
+  atualizarPlano: (id: number, dados: { nome: string; descricao?: string; maxFuncionarios?: number | null; ativo?: boolean }) =>
+    api.patch<Plano>(`/plataforma/planos/${id}`, dados),
+  codigos: (filtro: Pagina & { situacao?: SituacaoCodigo; idEmpresa?: number } = {}) =>
+    api.get<Paginado<CodigoAtivacao>>('/plataforma/codigos', { ...filtro }),
+  gerarCodigo: (dados: {
+    tipo: TipoCodigo;
+    idEmpresa?: number;
+    emailDestinatario?: string;
+    validadeDias?: number;
+    maxUsos?: number;
+    observacao?: string;
+  }) => api.post<CodigoGerado>('/plataforma/codigos', dados),
+  revogarCodigo: (id: number) => api.post<CodigoAtivacao>(`/plataforma/codigos/${id}/revogar`),
+  administradores: () => api.get<AdministradorPlataforma[]>('/plataforma/administradores'),
+  criarAdministrador: (dados: { nome: string; email: string }) =>
+    api.post<{ id: number; nome: string; email: string; senhaTemporaria: string }>('/plataforma/administradores', dados),
+  statusAdministrador: (id: number, status: StatusUsuario) =>
+    api.post<AdministradorPlataforma>(`/plataforma/administradores/${id}/status`, { status }),
+  senhaAdministrador: (id: number) => api.post<{ senhaTemporaria: string }>(`/plataforma/administradores/${id}/senha-temporaria`),
+  auditoria: (filtro: FiltroAuditoria & { idEmpresa?: number } = {}) =>
+    api.get<Paginado<RegistroAuditoria>>('/plataforma/auditoria', { ...filtro }),
 };
 
 export const empresaService = {

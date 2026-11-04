@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { IoAlertCircle, IoEye, IoEyeOff, IoInformationCircle } from 'react-icons/io5';
 import { Button } from '../../components/ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
 import { ApiError, mensagemErro } from '../../services/api';
+import { destinoInicial } from '../../utils/acesso';
 
 export default function Login() {
   const { entrar, motivoSaida } = useAuth();
@@ -21,7 +22,7 @@ export default function Login() {
     evento.preventDefault();
     if (enviando) return;
     const novos: typeof erros = {};
-    if (!login.trim()) novos.login = 'Informe o usuário.';
+    if (!login.trim()) novos.login = 'Informe o e-mail ou o usuário.';
     if (!senha) novos.senha = 'Informe a senha.';
     setErros(novos);
     if (Object.keys(novos).length) return;
@@ -29,13 +30,16 @@ export default function Login() {
     setEnviando(true);
     setFalha(null);
     try {
-      await entrar(login.trim(), senha, manterConectado);
-      const destino = (local.state as { de?: string } | null)?.de ?? '/';
-      navegar(destino, { replace: true });
+      const usuario = await entrar(login.trim(), senha, manterConectado);
+      const pedido = (local.state as { de?: string } | null)?.de;
+      const area = usuario.papel === 'SUPER_ADMIN' ? '/plataforma' : '/';
+      const pedidoValido =
+        !usuario.trocarSenha && pedido && (area === '/plataforma' ? pedido.startsWith('/plataforma') : !pedido.startsWith('/plataforma'));
+      navegar(pedidoValido ? pedido : destinoInicial(usuario), { replace: true });
     } catch (erro) {
       setFalha(
         erro instanceof ApiError && erro.status === 401
-          ? 'Usuário ou senha incorretos. Use o mesmo usuário do sistema da loja.'
+          ? 'E-mail, usuário ou senha incorretos.'
           : mensagemErro(erro),
       );
       setSenha('');
@@ -49,7 +53,7 @@ export default function Login() {
       <div className="login-cartao">
         <img src="/logo.svg" alt="Atrativa Shore" className="login-logo" />
         <h1>Entrar</h1>
-        <p className="muted">Use seu usuário e senha do sistema da loja.</p>
+        <p className="muted">Use o e-mail ou o usuário de acesso cadastrado para você.</p>
 
         {motivoSaida === 'expirada' && !falha ? (
           <div className="aviso-faixa info" role="status">
@@ -66,13 +70,13 @@ export default function Login() {
 
         <form className="pilha" onSubmit={enviar} noValidate>
           <div className={`campo ${erros.login ? 'campo-erro' : ''}`}>
-            <label htmlFor="login-usuario">Usuário</label>
+            <label htmlFor="login-usuario">E-mail ou usuário</label>
             <input
               id="login-usuario"
               className="entrada"
               autoComplete="username"
-              autoCapitalize="characters"
-              maxLength={15}
+              autoCapitalize="none"
+              maxLength={200}
               value={login}
               onChange={(e) => setLogin(e.target.value)}
               aria-invalid={erros.login ? true : undefined}
@@ -118,13 +122,16 @@ export default function Login() {
 
           <label className="caixa-selecao">
             <input type="checkbox" checked={manterConectado} onChange={(e) => setManterConectado(e.target.checked)} />
-            Manter conectado neste computador
+            Manter conectado neste navegador
           </label>
 
           <Button type="submit" carregando={enviando} className="login-botao">
             {enviando ? 'Entrando…' : 'Entrar'}
           </Button>
         </form>
+        <p className="login-rodape pequeno">
+          Recebeu um código de ativação? <Link to="/ativar">Ativar minha empresa</Link>
+        </p>
       </div>
     </div>
   );

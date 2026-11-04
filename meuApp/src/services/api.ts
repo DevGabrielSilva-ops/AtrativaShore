@@ -20,10 +20,13 @@ interface OpcoesRequisicao {
   parametros?: Parametros;
   sinal?: AbortSignal;
   ignorarSessaoExpirada?: boolean;
+  semRenovar?: boolean;
 }
 
 let tokenAtual: string | null = null;
 let aoExpirarSessao: (() => void) | null = null;
+let renovador: (() => Promise<string | null>) | null = null;
+let renovacaoEmAndamento: Promise<string | null> | null = null;
 const emAndamento = new Map<string, Promise<unknown>>();
 
 export function definirToken(token: string | null): void {
@@ -32,6 +35,20 @@ export function definirToken(token: string | null): void {
 
 export function quandoSessaoExpirar(callback: () => void): void {
   aoExpirarSessao = callback;
+}
+
+export function definirRenovador(funcao: () => Promise<string | null>): void {
+  renovador = funcao;
+}
+
+function renovarUmaVez(): Promise<string | null> {
+  if (!renovador) return Promise.resolve(null);
+  renovacaoEmAndamento ??= renovador()
+    .catch(() => null)
+    .finally(() => {
+      renovacaoEmAndamento = null;
+    });
+  return renovacaoEmAndamento;
 }
 
 function montarUrl(caminho: string, parametros?: Parametros): string {
@@ -63,6 +80,7 @@ async function executar<T>(caminho: string, opcoes: OpcoesRequisicao): Promise<T
       headers: cabecalhos,
       body: opcoes.corpo === undefined ? undefined : JSON.stringify(opcoes.corpo),
       signal: opcoes.sinal,
+      credentials: 'include',
     });
   } catch (erro) {
     if ((erro as Error).name === 'AbortError') throw erro;
@@ -82,7 +100,13 @@ async function executar<T>(caminho: string, opcoes: OpcoesRequisicao): Promise<T
   }
 
   if (!resposta.ok) {
-    if (resposta.status === 401 && tokenAtual && !opcoes.ignorarSessaoExpirada) aoExpirarSessao?.();
+    if (resposta.status === 401 && tokenAtual && !opcoes.ignorarSessaoExpirada) {
+      if (!opcoes.semRenovar) {
+        const novo = await renovarUmaVez();
+        if (novo) return executar<T>(caminho, { ...opcoes, semRenovar: true });
+      }
+      aoExpirarSessao?.();
+    }
     throw new ApiError(resposta.status, mensagensDoCorpo(corpo, resposta.status));
   }
 

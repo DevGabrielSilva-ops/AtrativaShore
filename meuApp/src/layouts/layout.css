@@ -301,3 +301,20 @@
     max-width: none;
   }
 }
+
+.sidebar-area {
+  font-size: var(--texto-xs);
+  font-weight: 600;
+  color: #fff;
+  background: var(--cor-marca);
+  border-radius: var(--raio-pill);
+  padding: 2px 8px;
+}
+.app-plataforma .sidebar {
+  background: var(--cor-superficie-2);
+  box-shadow: inset 0 4px 0 var(--cor-marca);
+}
+.app-plataforma .sidebar-topo {
+  flex-wrap: wrap;
+  gap: var(--esp-2);
+}
