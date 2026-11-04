@@ -103,7 +103,8 @@ export class AuthService {
     if (!registro) throw new UnauthorizedException('Sessão expirada. Entre novamente.');
 
     if (registro.revogadoEm) {
-      if (registro.substituidoPor) {
+      const recente = Date.now() - registro.revogadoEm.getTime() < 30_000;
+      if (registro.substituidoPor && !recente) {
         await this.revogarTodas(registro.idUsuario);
         await this.auditoria.registrar({
           acao: 'auth.refresh_reutilizado',
