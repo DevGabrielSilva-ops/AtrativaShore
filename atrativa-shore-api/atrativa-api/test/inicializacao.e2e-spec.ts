@@ -3,7 +3,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
-import { DataSource } from 'typeorm';
+import { getDataSourceToken } from '@nestjs/typeorm';
 
 process.env.JWT_SECRET = 'segredo-de-teste-com-mais-de-trinta-e-dois-caracteres';
 process.env.DB_HOST = '127.0.0.1';
@@ -15,11 +15,8 @@ const bancoFalso = {
   options: { type: 'mysql' },
   entityMetadatas: [],
   manager: {},
-  query: async (sql: string) => {
-    if (sql.includes('ENGINE AS motor')) return [];
-    if (sql.includes('information_schema')) return [{ 1: 1 }];
-    return [];
-  },
+  query: async () => [],
+  showMigrations: async () => false,
   getRepository: () => ({}),
   destroy: async () => undefined,
 };
@@ -31,7 +28,7 @@ describe('inicialização da API (sem banco)', () => {
     const { AppModule } = await import('../src/app.module.js');
     const { fabricaExcecaoValidacao } = await import('../src/common/validacao/mensagens-validacao.js');
     const modulo = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideProvider(DataSource)
+      .overrideProvider(getDataSourceToken('plataforma'))
       .useValue(bancoFalso)
       .compile();
     app = modulo.createNestApplication({ logger: false });
@@ -48,7 +45,7 @@ describe('inicialização da API (sem banco)', () => {
 
   it('rota pública de saúde responde no envelope { data }', async () => {
     const resposta = await request(app.getHttpServer()).get('/api/v1/health').expect(200);
-    expect(resposta.body.data).toMatchObject({ status: 'ok', migrations: { tabelasInnodb: true } });
+    expect(resposta.body.data).toMatchObject({ status: 'ok', plataformaMigrada: true });
   });
 
   it('rotas privadas exigem token (401 no formato padrão de erro)', async () => {
@@ -67,6 +64,24 @@ describe('inicialização da API (sem banco)', () => {
     expect(resposta.body.message).toEqual(
       expect.arrayContaining(['o campo extra não é permitido', 'login é obrigatório', 'senha deve ser um texto']),
     );
+  });
+
+  it('área da plataforma e de funcionários também exigem token', async () => {
+    for (const rota of ['/api/v1/plataforma/empresas', '/api/v1/plataforma/codigos', '/api/v1/funcionarios', '/api/v1/auditoria']) {
+      await request(app.getHttpServer()).get(rota).expect(401);
+    }
+  });
+
+  it('ativação valida o código e os dados antes de consultar o banco', async () => {
+    const resposta = await request(app.getHttpServer())
+      .post('/api/v1/ativacao/concluir')
+      .send({ codigo: 'curto', responsavel: { nome: '', email: 'invalido', senha: '123' } })
+      .expect(400);
+    expect(resposta.body.statusCode).toBe(400);
+  });
+
+  it('não existe rota pública para criar superadministrador', async () => {
+    await request(app.getHttpServer()).post('/api/v1/plataforma/administradores').send({ nome: 'X', email: 'x@x.com' }).expect(401);
   });
 
   it('rejeita token inválido', async () => {
@@ -96,6 +111,22 @@ describe('inicialização da API (sem banco)', () => {
       '/api/v1/relatorios/dashboard',
       '/api/v1/relatorios/produtos-mais-vendidos',
       '/api/v1/relatorios/clientes-debito',
+      '/api/v1/auth/refresh',
+      '/api/v1/auth/logout',
+      '/api/v1/ativacao/validar',
+      '/api/v1/ativacao/concluir',
+      '/api/v1/funcionarios',
+      '/api/v1/funcionarios/{id}/status',
+      '/api/v1/cargos',
+      '/api/v1/auditoria',
+      '/api/v1/plataforma/indicadores',
+      '/api/v1/plataforma/empresas',
+      '/api/v1/plataforma/empresas/{id}/status',
+      '/api/v1/plataforma/codigos',
+      '/api/v1/plataforma/codigos/{id}/revogar',
+      '/api/v1/plataforma/planos',
+      '/api/v1/plataforma/administradores',
+      '/api/v1/plataforma/auditoria',
     ]) {
       expect(rotas).toContain(esperada);
     }
