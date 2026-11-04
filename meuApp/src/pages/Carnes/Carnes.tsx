@@ -9,6 +9,7 @@ import { Input } from '../../components/ui/Field';
 import { PageHeader, Painel } from '../../components/ui/Layout';
 import { Modal } from '../../components/ui/Modal';
 import { Pagination } from '../../components/ui/Pagination';
+import { useAuth } from '../../contexts/AuthContext';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { useAcao, useRequisicao } from '../../hooks/useRequisicao';
 import { useEstadoReiniciado } from '../../hooks/useEstadoReiniciado';
@@ -25,6 +26,8 @@ interface ClienteSelecionado {
 }
 
 export default function Carnes() {
+  const { pode } = useAuth();
+  const podeReceber = pode('carnes.receber');
   const { notificar } = useFeedback();
   const [pagina, setPagina] = useState(1);
   const devedores = useRequisicao(() => relatorioService.clientesDebito({ page: pagina, limit: 12 }), [pagina]);
@@ -53,7 +56,8 @@ export default function Carnes() {
         return;
       }
       if (parcela.cliente) setCliente({ id: parcela.cliente.id, nome: parcela.cliente.nome ?? '', telefone: parcela.cliente.celular ?? parcela.cliente.telefone });
-      setRecebendo([parcela]);
+      if (podeReceber) setRecebendo([parcela]);
+      else notificar('Seu cargo pode consultar, mas não receber parcelas.', 'info');
     } catch (erro) {
       notificar(mensagemErro(erro), 'erro');
     }
@@ -222,9 +226,11 @@ export default function Carnes() {
                   <span className="num">
                     {selecionadas.length} parcela(s) · <strong>{formatarMoeda(somarReais(selecionadas.map((p) => p.valorParcela)))}</strong>
                   </span>
-                  <Button icone={<IoCashOutline />} onClick={() => setRecebendo(selecionadas)}>
-                    Receber selecionadas
-                  </Button>
+                  {podeReceber ? (
+                    <Button icone={<IoCashOutline />} onClick={() => setRecebendo(selecionadas)}>
+                      Receber selecionadas
+                    </Button>
+                  ) : null}
                 </div>
               ) : null}
             </Painel>

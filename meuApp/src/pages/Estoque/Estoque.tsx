@@ -28,7 +28,7 @@ type Aba = 'saldo' | 'movimentacoes';
 type FiltroSaldo = 'todos' | 'disponiveis' | 'baixo';
 
 export default function Estoque() {
-  const { usuario } = useAuth();
+  const { pode } = useAuth();
   const [parametros] = useSearchParams();
   const [aba, setAba] = useState<Aba>('saldo');
   const [entradaAberta, setEntradaAberta] = useState(false);
@@ -43,10 +43,10 @@ export default function Estoque() {
       .obter(id)
       .then((produto) => {
         setProdutoInicial(produto);
-        setEntradaAberta(true);
+        if (pode('estoque.entrada')) setEntradaAberta(true);
       })
       .catch(() => undefined);
-  }, [parametros]);
+  }, [parametros, pode]);
 
   const atualizar = () => setVersao((v) => v + 1);
 
@@ -57,14 +57,16 @@ export default function Estoque() {
         descricao="Saldo atual, entradas por nota, ajustes e histórico de movimentações."
         acoes={
           <>
-            {usuario?.administrador ? (
+            {pode('estoque.ajuste') ? (
               <Button variante="secundario" icone={<IoRemoveCircleOutline />} onClick={() => setAjuste('novo')}>
                 Saída ou ajuste
               </Button>
             ) : null}
-            <Button icone={<IoAdd />} onClick={() => setEntradaAberta(true)}>
-              Lançar entrada
-            </Button>
+            {pode('estoque.entrada') ? (
+              <Button icone={<IoAdd />} onClick={() => setEntradaAberta(true)}>
+                Lançar entrada
+              </Button>
+            ) : null}
           </>
         }
       />
@@ -81,7 +83,7 @@ export default function Estoque() {
         <AbaSaldo
           filtroInicial={parametros.get('filtro') === 'baixo' ? 'baixo' : 'todos'}
           versao={versao}
-          aoAjustar={usuario?.administrador ? (produto) => setAjuste(produto) : undefined}
+          aoAjustar={pode('estoque.ajuste') ? (produto) => setAjuste(produto) : undefined}
         />
       ) : (
         <AbaMovimentacoes versao={versao} />

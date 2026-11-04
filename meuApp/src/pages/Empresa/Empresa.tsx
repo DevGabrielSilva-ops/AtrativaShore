@@ -25,7 +25,8 @@ function paraFormulario(empresa: TipoEmpresa): FormEmpresa {
 }
 
 export default function Empresa() {
-  const { usuario } = useAuth();
+  const { pode } = useAuth();
+  const podeEditar = pode('empresa.configurar');
   const empresa = useRequisicao(() => empresaService.obter(), []);
   const [editando, setEditando] = useState(false);
   const e = empresa.dados;
@@ -36,7 +37,7 @@ export default function Empresa() {
         titulo="Empresa"
         descricao="Dados cadastrais da loja, usados nos comprovantes e relatórios."
         acoes={
-          usuario?.administrador && e && !editando ? (
+          podeEditar && e && !editando ? (
             <Button variante="secundario" icone={<IoCreateOutline />} onClick={() => setEditando(true)}>
               Editar dados
             </Button>
@@ -47,8 +48,8 @@ export default function Empresa() {
         <div className="aviso-faixa info">
           <IoInformationCircleOutline size={18} aria-hidden />
           <span>
-            O banco da loja guarda uma única empresa, então não há cadastro nem exclusão de empresas.
-            {usuario?.administrador ? '' : ' Somente o perfil administrador pode alterar estes dados.'}
+            Estes são os dados da sua empresa no Atrativa Shore. O cadastro de novas empresas é feito pela administração da plataforma.
+            {podeEditar ? '' : ' Somente o administrador da empresa pode alterar estes dados.'}
           </span>
         </div>
         {empresa.erro ? (

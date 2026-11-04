@@ -62,7 +62,7 @@ export default function Dashboard() {
   return (
     <div className="pilha dashboard">
       <PageHeader
-        titulo={`Olá, ${usuario?.login ?? ''}`}
+        titulo={`Olá, ${usuario?.nome.split(' ')[0] ?? ''}`}
         descricao="Resumo das vendas, carnês e estoque da loja."
         acoes={
           <Button icone={<IoAddCircleOutline />} onClick={() => navegar('/vendas/nova')}>

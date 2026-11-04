@@ -6,6 +6,7 @@ import { Input, Select } from '../../components/ui/Field';
 import { CampoBusca, PageHeader, Painel } from '../../components/ui/Layout';
 import { Modal } from '../../components/ui/Modal';
 import { Pagination } from '../../components/ui/Pagination';
+import { useAuth } from '../../contexts/AuthContext';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { textoOuIndefinido, textoOuNulo, useFormulario } from '../../hooks/useFormulario';
 import { useAcao, useAtrasado, useRequisicao } from '../../hooks/useRequisicao';
@@ -21,6 +22,9 @@ const VAZIO = { nome: '', cnpj: '', ie: '', contato: '', email: '', telefone: ''
 type FormFornecedor = typeof VAZIO;
 
 export default function Fornecedores() {
+  const { pode } = useAuth();
+  const podeEditar = pode('fornecedores.gerenciar');
+  const podeExcluir = pode('fornecedores.gerenciar');
   const { notificar, confirmar } = useFeedback();
   const [busca, setBusca] = useState('');
   const buscaAtrasada = useAtrasado(busca);
@@ -55,9 +59,11 @@ export default function Fornecedores() {
         titulo="Fornecedores"
         descricao="Usados no cadastro de produtos e nas notas de entrada de estoque."
         acoes={
-          <Button icone={<IoAdd />} onClick={() => setEditando('novo')}>
-            Novo fornecedor
-          </Button>
+          podeEditar ? (
+            <Button icone={<IoAdd />} onClick={() => setEditando('novo')}>
+              Novo fornecedor
+            </Button>
+          ) : null
         }
       />
       <Painel semEspaco>
@@ -85,12 +91,16 @@ export default function Fornecedores() {
               alinhar: 'direita',
               render: (f) => (
                 <div className="acoes-linha" onClick={(e) => e.stopPropagation()}>
-                  <Button variante="fantasma" tamanho="sm" somenteIcone icone={<IoCreateOutline />} onClick={() => setEditando(f)}>
-                    Editar
-                  </Button>
-                  <Button variante="fantasma" tamanho="sm" somenteIcone icone={<IoTrashOutline />} onClick={() => excluir(f)}>
-                    Excluir
-                  </Button>
+                  {podeEditar ? (
+                    <Button variante="fantasma" tamanho="sm" somenteIcone icone={<IoCreateOutline />} onClick={() => setEditando(f)}>
+                      Editar
+                    </Button>
+                  ) : null}
+                  {podeExcluir ? (
+                    <Button variante="fantasma" tamanho="sm" somenteIcone icone={<IoTrashOutline />} onClick={() => excluir(f)}>
+                      Excluir
+                    </Button>
+                  ) : null}
                 </div>
               ),
             },

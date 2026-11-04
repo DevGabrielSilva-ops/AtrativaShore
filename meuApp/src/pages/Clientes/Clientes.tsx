@@ -8,6 +8,7 @@ import { Input, Select, Textarea } from '../../components/ui/Field';
 import { Abas, CampoBusca, Detalhes, PageHeader, Painel } from '../../components/ui/Layout';
 import { Modal } from '../../components/ui/Modal';
 import { Pagination } from '../../components/ui/Pagination';
+import { useAuth } from '../../contexts/AuthContext';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { textoOuIndefinido, textoOuNulo, useFormulario } from '../../hooks/useFormulario';
 import { useAcao, useAtrasado, useRequisicao } from '../../hooks/useRequisicao';
@@ -69,6 +70,9 @@ function paraFormulario(cliente: Cliente): FormCliente {
 }
 
 export default function Clientes() {
+  const { pode } = useAuth();
+  const podeEditar = pode('clientes.gerenciar');
+  const podeExcluir = pode('clientes.excluir');
   const { notificar, confirmar } = useFeedback();
   const [parametros, setParametros] = useSearchParams();
   const [busca, setBusca] = useState(parametros.get('busca') ?? '');
@@ -133,9 +137,11 @@ export default function Clientes() {
             <Button variante="secundario" icone={<IoDownloadOutline />} onClick={exportar} disabled={!lista.dados?.data.length}>
               Exportar página
             </Button>
-            <Button icone={<IoAdd />} onClick={() => setEditando('novo')}>
-              Novo cliente
-            </Button>
+            {podeEditar ? (
+              <Button icone={<IoAdd />} onClick={() => setEditando('novo')}>
+                Novo cliente
+              </Button>
+            ) : null}
           </>
         }
       />
@@ -157,11 +163,11 @@ export default function Clientes() {
               ? { titulo: 'Nenhum cliente encontrado', descricao: 'Confira o nome ou o CPF digitado.' }
               : {
                   titulo: 'Nenhum cliente cadastrado',
-                  acao: (
+                  acao: podeEditar ? (
                     <Button icone={<IoAdd />} onClick={() => setEditando('novo')}>
                       Cadastrar cliente
                     </Button>
-                  ),
+                  ) : undefined,
                 }
           }
           colunas={[
@@ -189,12 +195,16 @@ export default function Clientes() {
               alinhar: 'direita',
               render: (c) => (
                 <div className="acoes-linha" onClick={(e) => e.stopPropagation()}>
-                  <Button variante="fantasma" tamanho="sm" somenteIcone icone={<IoCreateOutline />} onClick={() => setEditando(c)}>
-                    Editar
-                  </Button>
-                  <Button variante="fantasma" tamanho="sm" somenteIcone icone={<IoTrashOutline />} onClick={() => excluir(c)}>
-                    Excluir
-                  </Button>
+                  {podeEditar ? (
+                    <Button variante="fantasma" tamanho="sm" somenteIcone icone={<IoCreateOutline />} onClick={() => setEditando(c)}>
+                      Editar
+                    </Button>
+                  ) : null}
+                  {podeExcluir ? (
+                    <Button variante="fantasma" tamanho="sm" somenteIcone icone={<IoTrashOutline />} onClick={() => excluir(c)}>
+                      Excluir
+                    </Button>
+                  ) : null}
                 </div>
               ),
             },
@@ -219,8 +229,8 @@ export default function Clientes() {
         <DetalheCliente
           cliente={vendo}
           aoFechar={() => setVendo(null)}
-          aoEditar={() => setEditando(vendo)}
-          aoExcluir={() => excluir(vendo)}
+          aoEditar={podeEditar ? () => setEditando(vendo) : undefined}
+          aoExcluir={podeExcluir ? () => excluir(vendo) : undefined}
         />
       ) : null}
     </>
@@ -377,8 +387,8 @@ function DetalheCliente({
 }: {
   cliente: Cliente;
   aoFechar: () => void;
-  aoEditar: () => void;
-  aoExcluir: () => void;
+  aoEditar?: () => void;
+  aoExcluir?: () => void;
 }) {
   const [aba, setAba] = useState<'dados' | 'compras' | 'carnes'>('dados');
   const [pagina, setPagina] = useState(1);
@@ -394,12 +404,16 @@ function DetalheCliente({
       tamanho="lg"
       rodape={
         <>
-          <Button variante="fantasma" icone={<IoTrashOutline />} onClick={aoExcluir}>
-            Excluir
-          </Button>
-          <Button variante="secundario" icone={<IoCreateOutline />} onClick={aoEditar}>
-            Editar
-          </Button>
+          {aoExcluir ? (
+            <Button variante="fantasma" icone={<IoTrashOutline />} onClick={aoExcluir}>
+              Excluir
+            </Button>
+          ) : null}
+          {aoEditar ? (
+            <Button variante="secundario" icone={<IoCreateOutline />} onClick={aoEditar}>
+              Editar
+            </Button>
+          ) : null}
         </>
       }
     >

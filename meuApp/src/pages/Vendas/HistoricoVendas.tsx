@@ -24,6 +24,8 @@ import { FORMAS_PAGAMENTO } from '../compartilhado';
 
 export default function HistoricoVendas() {
   const navegar = useNavigate();
+  const { pode } = useAuth();
+  const somenteProprias = !pode('vendas.consultar_todas');
   const [parametros, setParametros] = useSearchParams();
   const [periodo, setPeriodo] = useState<Periodo>(periodoDoMes);
   const [cliente, setCliente] = useState<Cliente | null>(null);
@@ -68,15 +70,21 @@ export default function HistoricoVendas() {
     <>
       <PageHeader
         titulo="Histórico de vendas"
-        descricao="Consulte vendas por período, cliente e forma de pagamento."
+        descricao={
+          somenteProprias
+            ? 'Suas vendas, por período, cliente e forma de pagamento.'
+            : 'Consulte vendas por período, cliente e forma de pagamento.'
+        }
         acoes={
           <>
             <Button variante="secundario" icone={<IoDownloadOutline />} onClick={exportar} disabled={!lista.dados?.data.length}>
               Exportar CSV
             </Button>
-            <Button icone={<IoAddCircleOutline />} onClick={() => navegar('/vendas/nova')}>
-              Nova venda
-            </Button>
+            {pode('vendas.registrar') ? (
+              <Button icone={<IoAddCircleOutline />} onClick={() => navegar('/vendas/nova')}>
+                Nova venda
+              </Button>
+            ) : null}
           </>
         }
       />
@@ -176,7 +184,7 @@ export default function HistoricoVendas() {
 }
 
 function DetalheVenda({ id, aoFechar, aoEstornar }: { id: number; aoFechar: () => void; aoEstornar: () => void }) {
-  const { usuario } = useAuth();
+  const { pode } = useAuth();
   const { confirmar, notificar } = useFeedback();
   const venda = useRequisicao(() => vendaService.obter(id), [id]);
   const v = venda.dados;
@@ -211,7 +219,7 @@ function DetalheVenda({ id, aoFechar, aoEstornar }: { id: number; aoFechar: () =
       rodape={
         v ? (
           <>
-            {usuario?.administrador && !v.estornada ? (
+            {pode('vendas.estornar') && !v.estornada ? (
               <Button variante="fantasma" icone={<IoArrowUndoOutline />} onClick={() => void estornar.executar()} carregando={estornar.executando}>
                 Estornar venda
               </Button>

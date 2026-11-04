@@ -7,6 +7,7 @@ import { Input, Select } from '../../components/ui/Field';
 import { CampoBusca, Detalhes, PageHeader, Painel } from '../../components/ui/Layout';
 import { Modal } from '../../components/ui/Modal';
 import { Pagination } from '../../components/ui/Pagination';
+import { useAuth } from '../../contexts/AuthContext';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { useFormulario } from '../../hooks/useFormulario';
 import { useAcao, useAtrasado, useRequisicao } from '../../hooks/useRequisicao';
@@ -20,6 +21,9 @@ import { BadgeMovimentacao } from '../../components/BadgeMovimentacao';
 import { BadgeEstoque } from '../../components/Produto';
 
 export default function Produtos() {
+  const { pode } = useAuth();
+  const podeEditar = pode('produtos.gerenciar');
+  const podeExcluir = pode('produtos.gerenciar');
   const { notificar, confirmar } = useFeedback();
   const [busca, setBusca] = useState('');
   const [idFornecedor, setIdFornecedor] = useState('');
@@ -88,9 +92,11 @@ export default function Produtos() {
             <Button variante="secundario" icone={<IoDownloadOutline />} onClick={exportar} disabled={!lista.dados?.data.length}>
               Exportar página
             </Button>
-            <Button icone={<IoAdd />} onClick={() => setEditando('novo')}>
-              Novo produto
-            </Button>
+            {podeEditar ? (
+              <Button icone={<IoAdd />} onClick={() => setEditando('novo')}>
+                Novo produto
+              </Button>
+            ) : null}
           </>
         }
       />
@@ -153,12 +159,16 @@ export default function Produtos() {
               alinhar: 'direita',
               render: (p) => (
                 <div className="acoes-linha" onClick={(e) => e.stopPropagation()}>
-                  <Button variante="fantasma" tamanho="sm" somenteIcone icone={<IoCreateOutline />} onClick={() => setEditando(p)}>
-                    Editar
-                  </Button>
-                  <Button variante="fantasma" tamanho="sm" somenteIcone icone={<IoTrashOutline />} onClick={() => excluir(p)}>
-                    Excluir
-                  </Button>
+                  {podeEditar ? (
+                    <Button variante="fantasma" tamanho="sm" somenteIcone icone={<IoCreateOutline />} onClick={() => setEditando(p)}>
+                      Editar
+                    </Button>
+                  ) : null}
+                  {podeExcluir ? (
+                    <Button variante="fantasma" tamanho="sm" somenteIcone icone={<IoTrashOutline />} onClick={() => excluir(p)}>
+                      Excluir
+                    </Button>
+                  ) : null}
                 </div>
               ),
             },
@@ -179,7 +189,7 @@ export default function Produtos() {
         />
       ) : null}
       {vendo ? (
-        <DetalheProduto produto={vendo} aoFechar={() => setVendo(null)} aoEditar={() => setEditando(vendo)} aoExcluir={() => excluir(vendo)} />
+        <DetalheProduto produto={vendo} aoFechar={() => setVendo(null)} aoEditar={podeEditar ? () => setEditando(vendo) : undefined} aoExcluir={podeExcluir ? () => excluir(vendo) : undefined} />
       ) : null}
     </>
   );
@@ -374,8 +384,8 @@ function DetalheProduto({
 }: {
   produto: Produto;
   aoFechar: () => void;
-  aoEditar: () => void;
-  aoExcluir: () => void;
+  aoEditar?: () => void;
+  aoExcluir?: () => void;
 }) {
   const saldo = useRequisicao(() => estoqueService.saldo(produto.id), [produto.id]);
   const atual = saldo.dados ?? produto;
@@ -388,15 +398,19 @@ function DetalheProduto({
       tamanho="lg"
       rodape={
         <>
-          <Button variante="fantasma" icone={<IoTrashOutline />} onClick={aoExcluir}>
-            Excluir
-          </Button>
+          {aoExcluir ? (
+            <Button variante="fantasma" icone={<IoTrashOutline />} onClick={aoExcluir}>
+              Excluir
+            </Button>
+          ) : null}
           <Link to={`/estoque?produto=${produto.id}`} className="btn btn-secundario btn-md">
             Lançar no estoque
           </Link>
-          <Button variante="secundario" icone={<IoCreateOutline />} onClick={aoEditar}>
-            Editar
-          </Button>
+          {aoEditar ? (
+            <Button variante="secundario" icone={<IoCreateOutline />} onClick={aoEditar}>
+              Editar
+            </Button>
+          ) : null}
         </>
       }
     >

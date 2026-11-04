@@ -15,6 +15,7 @@ import { useFeedback } from '../../contexts/FeedbackContext';
 import { useRequisicao } from '../../hooks/useRequisicao';
 import { usePagina } from '../../hooks/useEstadoReiniciado';
 import { mensagemErro } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { relatorioService } from '../../services/servicos';
 import type { Meta, Paginado } from '../../types/api';
 import { exportarCsv, imprimir, type ColunaExportacao } from '../../utils/exportar';
@@ -32,16 +33,16 @@ import { BadgeMovimentacao } from '../../components/BadgeMovimentacao';
 import { CORES_FORMAS, ROTULOS_FORMAS, ROTULOS_MOVIMENTACAO } from '../compartilhado';
 
 const ABAS = [
-  { id: 'vendas', titulo: 'Vendas' },
-  { id: 'faturamento', titulo: 'Faturamento' },
-  { id: 'desempenho', titulo: 'Desempenho' },
-  { id: 'produtos', titulo: 'Mais vendidos' },
-  { id: 'clientes', titulo: 'Por cliente' },
-  { id: 'debito', titulo: 'Clientes em débito' },
-  { id: 'baixas', titulo: 'Baixas de carnê' },
-  { id: 'estoque', titulo: 'Estoque baixo' },
-  { id: 'mercadorias', titulo: 'Mercadorias' },
-  { id: 'movimentacoes', titulo: 'Movimentações' },
+  { id: 'vendas', titulo: 'Vendas', permissao: 'relatorios.vendas' },
+  { id: 'faturamento', titulo: 'Faturamento', permissao: 'relatorios.vendas' },
+  { id: 'desempenho', titulo: 'Desempenho', permissao: 'relatorios.vendas' },
+  { id: 'produtos', titulo: 'Mais vendidos', permissao: 'relatorios.vendas' },
+  { id: 'clientes', titulo: 'Por cliente', permissao: 'relatorios.vendas' },
+  { id: 'debito', titulo: 'Clientes em débito', permissao: 'relatorios.vendas' },
+  { id: 'baixas', titulo: 'Baixas de carnê', permissao: 'relatorios.vendas' },
+  { id: 'estoque', titulo: 'Estoque baixo', permissao: 'relatorios.estoque' },
+  { id: 'mercadorias', titulo: 'Mercadorias', permissao: 'relatorios.estoque' },
+  { id: 'movimentacoes', titulo: 'Movimentações', permissao: 'relatorios.estoque' },
 ] as const;
 type IdAba = (typeof ABAS)[number]['id'];
 
@@ -55,7 +56,9 @@ async function todasAsPaginas<T>(buscar: (pagina: number) => Promise<Paginado<T>
 
 export default function Relatorios() {
   const [parametros, setParametros] = useSearchParams();
-  const aba = (ABAS.some((a) => a.id === parametros.get('aba')) ? parametros.get('aba') : 'vendas') as IdAba;
+  const { pode } = useAuth();
+  const abas = ABAS.filter((a) => pode(a.permissao));
+  const aba = (abas.some((a) => a.id === parametros.get('aba')) ? parametros.get('aba') : (abas[0]?.id ?? 'vendas')) as IdAba;
   const [periodo, setPeriodo] = useState<Periodo>(periodoDoMes);
   const usaPeriodo = !['estoque', 'debito'].includes(aba);
 
@@ -70,7 +73,7 @@ export default function Relatorios() {
           </Button>
         }
       />
-      <Abas rotulo="Relatórios" abas={[...ABAS]} ativa={aba} aoMudar={(id) => setParametros({ aba: id }, { replace: true })} />
+      <Abas rotulo="Relatórios" abas={abas.map(({ id, titulo }) => ({ id, titulo }))} ativa={aba} aoMudar={(id) => setParametros({ aba: id }, { replace: true })} />
       <div className="pilha">
         {usaPeriodo ? <FiltroPeriodo periodo={periodo} aoMudar={setPeriodo} /> : null}
         <p className="so-impressao pequeno">

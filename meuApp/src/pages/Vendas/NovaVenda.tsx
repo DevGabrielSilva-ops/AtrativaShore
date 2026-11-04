@@ -17,6 +17,7 @@ import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Estados';
 import { Input } from '../../components/ui/Field';
 import { Modal } from '../../components/ui/Modal';
+import { useAuth } from '../../contexts/AuthContext';
 import { useFeedback } from '../../contexts/FeedbackContext';
 import { useAcao, useRequisicao } from '../../hooks/useRequisicao';
 import { ApiError, mensagemErro } from '../../services/api';
@@ -58,6 +59,7 @@ function totalLinha(linha: Linha): number {
 
 export default function NovaVenda() {
   const { notificar } = useFeedback();
+  const { pode } = useAuth();
   const caixa = useRequisicao(() => caixaService.atual(), []);
   const [itens, setItens] = useState<Linha[]>([]);
   const [trocas, setTrocas] = useState<Linha[]>([]);
@@ -285,9 +287,11 @@ export default function NovaVenda() {
                     )}
                     aoSelecionar={setCliente}
                   />
-                  <Link to="/clientes?novo=1" className="btn btn-fantasma btn-sm btn-icone" aria-label="Cadastrar cliente" title="Cadastrar cliente">
-                    <IoPersonAddOutline />
-                  </Link>
+                  {pode('clientes.gerenciar') ? (
+                    <Link to="/clientes?novo=1" className="btn btn-fantasma btn-sm btn-icone" aria-label="Cadastrar cliente" title="Cadastrar cliente">
+                      <IoPersonAddOutline />
+                    </Link>
+                  ) : null}
                 </div>
               )}
             </div>
