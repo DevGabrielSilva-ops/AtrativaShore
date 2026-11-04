@@ -17,6 +17,18 @@ export interface Configuracao {
     segredo: string;
     expiraEm: string;
   };
+  sessao: {
+    refreshDias: number;
+    refreshHorasSemLembrar: number;
+    cookieSeguro: boolean;
+    cookieSameSite: 'strict' | 'lax' | 'none';
+  };
+  plataforma: {
+    banco: string;
+    prefixoBancoEmpresa: string;
+    conexoesPorEmpresa: number;
+    ativacaoValidadeDias: number;
+  };
   bcryptRodadas: number;
   fusoHorario: string;
   empresaId: number;
@@ -74,6 +86,19 @@ function decimal(env: Ambiente, chave: string, padrao: number, minimo: number, m
   return valor;
 }
 
+function nomeBanco(valor: string, chave: string): string {
+  if (!/^[A-Za-z0-9_]{1,48}$/.test(valor)) {
+    throw new Error(`Variável ${chave} inválida: use só letras, números e _ (até 48 caracteres)`);
+  }
+  return valor;
+}
+
+function sameSite(valor: string): 'strict' | 'lax' | 'none' {
+  const normalizado = valor.toLowerCase();
+  if (normalizado === 'strict' || normalizado === 'lax' || normalizado === 'none') return normalizado;
+  throw new Error('COOKIE_SAMESITE deve ser strict, lax ou none');
+}
+
 function booleano(env: Ambiente, chave: string, padrao: boolean): boolean {
   const bruto = env[chave]?.trim().toLowerCase();
   if (bruto === undefined || bruto === '') return padrao;
@@ -128,7 +153,19 @@ export function carregarConfiguracao(env: Ambiente = process.env): Configuracao 
     },
     jwt: {
       segredo,
-      expiraEm: texto(env, 'JWT_EXPIRES_IN', '1d'),
+      expiraEm: texto(env, 'JWT_EXPIRES_IN', '15m'),
+    },
+    sessao: {
+      refreshDias: inteiro(env, 'REFRESH_TOKEN_DIAS', 7, 1, 90),
+      refreshHorasSemLembrar: inteiro(env, 'REFRESH_TOKEN_HORAS_SESSAO', 12, 1, 72),
+      cookieSeguro: booleano(env, 'COOKIE_SECURE', ambiente === 'production'),
+      cookieSameSite: sameSite(texto(env, 'COOKIE_SAMESITE', 'strict')),
+    },
+    plataforma: {
+      banco: nomeBanco(texto(env, 'DB_PLATAFORMA', 'atrativa_plataforma'), 'DB_PLATAFORMA'),
+      prefixoBancoEmpresa: nomeBanco(texto(env, 'DB_EMPRESA_PREFIXO', 'atrativa_emp_'), 'DB_EMPRESA_PREFIXO'),
+      conexoesPorEmpresa: inteiro(env, 'DB_CONEXOES_POR_EMPRESA', 5, 1, 50),
+      ativacaoValidadeDias: inteiro(env, 'ATIVACAO_VALIDADE_DIAS', 7, 1, 365),
     },
     bcryptRodadas: inteiro(env, 'BCRYPT_ROUNDS', 10, 8, 15),
     fusoHorario,
