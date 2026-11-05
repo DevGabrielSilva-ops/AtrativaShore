@@ -175,7 +175,7 @@ export function carregarConfiguracao(env: Ambiente = process.env): Configuracao 
     backup: {
       diretorio: texto(env, 'BACKUP_DIR', 'armazenamento/backups'),
       retencaoHoras: inteiro(env, 'BACKUP_RETENCAO_HORAS', 24, 1, 720),
-      mysqldump: env.MYSQLDUMP_PATH?.trim() || null,
+      mysqldump: env.MYSQLDUMP_PATH?.trim() === 'desativado' ? null : env.MYSQLDUMP_PATH?.trim() || 'mysqldump',
     },
     bcryptRodadas: inteiro(env, 'BCRYPT_ROUNDS', 10, 8, 15),
     fusoHorario,

@@ -202,8 +202,8 @@ Migrations futuras do banco das empresas: `npm run empresas:migrar` aplica em to
 
 ### 6.1 Backups
 
-- Backup da empresa: depois de fechar o caixa (ou em Configurações › Cópias de segurança), quem tem `backup.gerar` gera um ZIP com os dados só da sua empresa, sem senhas nem tokens. Detalhes do formato na seção "Backup dos dados" do README da API.
-- Backup global: em Plataforma › Backups, o superadministrador gera scripts SQL de todos os bancos (`mysqldump` se `MYSQLDUMP_PATH` estiver no `.env`).
+- Backup da empresa: depois de fechar o caixa (ou em Configurações › Cópias de segurança), quem tem `backup.gerar` gera um ZIP com o dump MySQL (`mysqldump`) do banco da empresa e os registros dela no banco central, sem senhas nem tokens. Detalhes do formato na seção "Backup dos dados" do README da API.
+- Backup global: em Plataforma › Backups, o superadministrador gera o dump de todos os bancos com o `mysqldump` (ou o exportador interno, se ele não estiver instalado).
 - Os dois tipos ficam em `plataforma_backups`, separados por `tipo`, e nunca aparecem um na lista do outro.
 - Depois de atualizar, rode `npm run plataforma:migrar` para criar `plataforma_backups`.
 

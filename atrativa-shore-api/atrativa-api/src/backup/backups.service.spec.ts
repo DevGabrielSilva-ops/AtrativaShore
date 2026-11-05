@@ -108,8 +108,8 @@ describe('BackupsService', () => {
     exportar.mockReset();
     exportar.mockImplementation(async (_fonte, _plataforma, zip) => {
       await zip.adicionar('metadados.json', '{"versaoFormato":1}');
-      await zip.adicionar('dados/empresa/cad_clientes.json', '{"linhas":[{"id":1}]}');
-      return { arquivos: [], registros: 1 };
+      await zip.adicionar('dados/empresa.sql', 'INSERT INTO `cad_clientes` (`id`) VALUES\n(1);\n');
+      return { arquivos: [], registros: 1, ferramenta: 'teste', aviso: null };
     });
     servico = new BackupsService(
       backups as never,
@@ -136,7 +136,8 @@ describe('BackupsService', () => {
     const pronto = await servico.obter({ tipo: 'EMPRESA', idEmpresa: 1 }, inicial.id);
     expect(pronto).toMatchObject({ status: 'CONCLUIDO', progresso: 100, disponivel: true, registros: 1, usuario: { id: 10, nome: 'Admin A' } });
     expect(conexoes.obter).toHaveBeenCalledWith('atrativa_emp_1');
-    expect(exportar.mock.calls[0][3]).toMatchObject({ idEmpresa: 1, nomeEmpresa: 'Loja Açaí São João' });
+    expect(exportar.mock.calls[0][3]).toMatchObject({ idEmpresa: 1, nomeEmpresa: 'Loja Açaí São João', banco: 'atrativa_emp_1' });
+    expect(exportar.mock.calls[0][5]).toEqual({ mysqldump: null, pastaTemporaria: path.join(diretorio, 'empresa-1') });
 
     const arquivo = await servico.abrirDownload({ tipo: 'EMPRESA', idEmpresa: 1 }, inicial.id, usuario());
     const partes: Buffer[] = [];
@@ -145,7 +146,7 @@ describe('BackupsService', () => {
     expect(arquivo.nome).toBe(inicial.nomeArquivo);
     expect(conteudo.length).toBe(arquivo.tamanho);
     expect(createHash('sha256').update(conteudo).digest('hex')).toBe(pronto.sha256);
-    expect([...lerZip(conteudo).keys()]).toEqual(['metadados.json', 'dados/empresa/cad_clientes.json']);
+    expect([...lerZip(conteudo).keys()]).toEqual(['metadados.json', 'dados/empresa.sql']);
 
     const acoes = auditoria.registrar.mock.calls.map(([r]) => (r as { acao: string; idEmpresa: number }));
     expect(acoes).toEqual([
@@ -184,7 +185,7 @@ describe('BackupsService', () => {
     let liberar!: () => void;
     exportar.mockImplementationOnce(async () => {
       await new Promise<void>((resolver) => (liberar = resolver));
-      return { arquivos: [], registros: 0 };
+      return { arquivos: [], registros: 0, ferramenta: 'teste', aviso: null };
     });
     const primeiro = await servico.gerarDaEmpresa(usuario());
     const segundo = await servico.gerarDaEmpresa(usuario());

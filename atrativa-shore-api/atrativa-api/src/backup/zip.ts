@@ -44,6 +44,7 @@ const LIMITE_ZIP32 = 0xffffffff;
 export class EscritorZip {
   private posicao = 0;
   private readonly entradas: EntradaCentral[] = [];
+  private readonly iniciadas = new Set<string>();
 
   constructor(
     private readonly saida: Writable,
@@ -56,6 +57,7 @@ export class EscritorZip {
   }
 
   async adicionar(nome: string, conteudo: Conteudo): Promise<{ original: number; comprimido: number }> {
+    this.iniciadas.add(nome);
     const nomeBuffer = Buffer.from(nome, 'utf8');
     const deslocamento = this.posicao;
     const { hora, dia } = dataDos(this.data);
@@ -119,6 +121,10 @@ export class EscritorZip {
 
     this.entradas.push({ nome: nomeBuffer, crc: crc >>> 0, comprimido, original, deslocamento, hora, dia });
     return { original, comprimido };
+  }
+
+  entradaIniciada(nome: string): boolean {
+    return this.iniciadas.has(nome);
   }
 
   async finalizar(): Promise<number> {

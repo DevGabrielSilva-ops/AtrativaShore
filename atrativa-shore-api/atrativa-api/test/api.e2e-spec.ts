@@ -264,17 +264,20 @@ describe.skipIf(!habilitado)('Plataforma SaaS (e2e, MySQL real)', () => {
     const zip = download.body as Buffer;
     expect(createHash('sha256').update(zip).digest('hex')).toBe(pronto.sha256);
     const entradas = lerZip(zip);
-    const json = (nome: string) => JSON.parse(entradas.get(nome)!.conteudo.toString('utf8'));
+    const texto = (nome: string) => entradas.get(nome)!.conteudo.toString('utf8');
 
-    const metadados = json('metadados.json');
-    expect(metadados).toMatchObject({ formato: 'atrativa-shore-backup-empresa', versaoFormato: 1, empresa: { id: idEmpresaA } });
-    const produtos = json('dados/empresa/cad_produtos.json').linhas as Array<Record<string, unknown>>;
-    expect(produtos.filter((p) => JSON.stringify(p).includes(marca))).toHaveLength(1);
-    expect(JSON.stringify(json('dados/empresa/cad_clientes.json'))).toContain(`CLIENTE SOMENTE A ${marca}`);
-    expect(json('dados/empresa/mv_fechamento.json').linhas.length).toBeGreaterThanOrEqual(1);
-    expect(entradas.has('dados/empresa/api_credencial.json')).toBe(false);
-    const usuarios = json('dados/plataforma/plataforma_usuarios.json').linhas as Array<Record<string, unknown>>;
-    expect(usuarios.every((u) => u.id_empresa === idEmpresaA)).toBe(true);
+    const metadados = JSON.parse(texto('metadados.json'));
+    expect(metadados).toMatchObject({ formato: 'atrativa-shore-backup-empresa', versaoFormato: 2, empresa: { id: idEmpresaA } });
+    const sql = texto('dados/empresa.sql');
+    expect(sql).toMatch(/CREATE TABLE `cad_produtos`/);
+    expect(sql.split(`CAMISETA EXCLUSIVA A ${marca}`).length - 1).toBe(1);
+    expect(sql).toContain(`CLIENTE SOMENTE A ${marca}`);
+    expect(sql).toMatch(/INSERT INTO `mv_fechamento`/);
+    expect(sql).not.toMatch(/INSERT INTO `api_credencial`|DROP TABLE/);
+    const central = texto('dados/plataforma.sql');
+    expect(central).toContain(`admin-a-${marca}@e2e.test`);
+    expect(central).not.toContain(`admin-b-${marca}@e2e.test`);
+    expect(entradas.has('empresa.json')).toBe(true);
     const todo = [...entradas.values()].map((e) => e.conteudo.toString('utf8')).join('\n');
     expect(todo).not.toMatch(/senha-admin-e2e|nova-senha-vendedor|\$2[aby]\$/);
     expect(todo).not.toContain(`Loja B ${marca}`);
@@ -316,11 +319,18 @@ describe.skipIf(!habilitado)('Plataforma SaaS (e2e, MySQL real)', () => {
     const download = await dono.get(`/plataforma/backups/${pedido.body.data.id}/download`).buffer(true).parse(binario).expect(200);
     const entradas = lerZip(download.body as Buffer);
     const arquivos = [...entradas.keys()];
-    expect(arquivos).toContain(`sql/${BANCO_PLATAFORMA}.sql`);
-    expect(arquivos.filter((a) => a.startsWith(`sql/${PREFIXO_EMPRESA}`))).toHaveLength(2);
-    const central = entradas.get(`sql/${BANCO_PLATAFORMA}.sql`)!.conteudo.toString('utf8');
-    expect(central).toContain('CREATE TABLE `plataforma_empresas`');
-    expect(central).not.toMatch(/INSERT INTO `plataforma_refresh_tokens`/);
+    const completo = entradas.get('sql/plataforma-completa.sql')?.conteudo.toString('utf8');
+    if (completo) {
+      expect(completo).toContain(`CREATE DATABASE /*!32312 IF NOT EXISTS*/ \`${BANCO_PLATAFORMA}\``);
+      expect(completo.match(new RegExp(`CREATE DATABASE .*\`${PREFIXO_EMPRESA}`, 'g'))).toHaveLength(2);
+      expect(completo).not.toMatch(/INSERT INTO `plataforma_refresh_tokens`/);
+    } else {
+      expect(arquivos).toContain(`sql/${BANCO_PLATAFORMA}.sql`);
+      expect(arquivos.filter((a) => a.startsWith(`sql/${PREFIXO_EMPRESA}`))).toHaveLength(2);
+      const central = entradas.get(`sql/${BANCO_PLATAFORMA}.sql`)!.conteudo.toString('utf8');
+      expect(central).toContain('CREATE TABLE `plataforma_empresas`');
+      expect(central).not.toMatch(/INSERT INTO `plataforma_refresh_tokens`/);
+    }
     expect((await lojaA.get('/backups').expect(200)).body.data.every((b: { tipo: string }) => b.tipo === 'EMPRESA')).toBe(true);
 
     const auditoria = await dono.get('/plataforma/auditoria?acao=backup.&limit=100').expect(200);

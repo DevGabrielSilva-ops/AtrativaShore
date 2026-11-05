@@ -33,6 +33,7 @@ import {
   type BancoParaDump,
   type ResumoBanco,
 } from './exportador-plataforma.js';
+import { mysqldumpDisponivel } from './sql.js';
 import { EscritorZip } from './zip.js';
 
 export interface Escopo {
@@ -182,7 +183,7 @@ export class BackupsService implements OnApplicationBootstrap, OnModuleDestroy {
     const { dia, hora } = dataLocal(agora, this.config.fusoHorario);
     const nome = `atrativa-shore-backup-${slugArquivo(empresa.nome)}-${dia}.zip`;
     const backup = await this.criarRegistro(escopo, usuario.id, nome, `empresa-${escopo.idEmpresa}`);
-    this.agendar(backup, async (zip, progresso) => {
+    this.agendar(backup, async (zip, progresso, pastaTemporaria) => {
       const fonte = await this.conexoes.obter(empresa.banco);
       const resultado = await exportarEmpresa(
         fonte,
@@ -191,13 +192,19 @@ export class BackupsService implements OnApplicationBootstrap, OnModuleDestroy {
         {
           idEmpresa: escopo.idEmpresa!,
           nomeEmpresa: empresa.nome,
+          banco: empresa.banco,
           geradoPor: { id: usuario.id, nome: usuario.nome },
           geradoEm: agora,
           versaoApi: VERSAO_API,
         },
         progresso,
+        { mysqldump: this.opcoesMysqldump(), pastaTemporaria },
       );
-      return { registros: resultado.registros, detalhes: { hora, tabelas: resultado.arquivos.length } };
+      if (resultado.aviso) this.logger.warn(`Backup da empresa ${escopo.idEmpresa}: ${resultado.aviso}`);
+      return {
+        registros: resultado.registros,
+        detalhes: { hora, ferramenta: resultado.ferramenta, ...(resultado.aviso ? { aviso: resultado.aviso } : {}) },
+      };
     });
     return this.obter(escopo, backup.id);
   }
@@ -211,7 +218,7 @@ export class BackupsService implements OnApplicationBootstrap, OnModuleDestroy {
     const { dia, hora } = dataLocal(agora, this.config.fusoHorario);
     const nome = `atrativa-shore-backup-plataforma-${dia}-${hora}.zip`;
     const backup = await this.criarRegistro(escopo, usuario.id, nome, 'plataforma');
-    this.agendar(backup, async (zip, progresso) => {
+    this.agendar(backup, async (zip, progresso, pastaTemporaria) => {
       const valores = this.config.valores;
       const empresas = await this.empresas.find({ where: { bancoProvisionado: true }, order: { id: 'ASC' } });
       const central = valores.plataforma.banco;
@@ -224,22 +231,31 @@ export class BackupsService implements OnApplicationBootstrap, OnModuleDestroy {
       }
 
       const bancos: ResumoBanco[] = [];
-      let ferramenta: string;
-      if (valores.backup.mysqldump) {
-        ferramenta = 'mysqldump';
-        await progresso(5, 'Executando mysqldump');
-        const { arquivo } = await exportarComMysqldump(
-          valores.backup.mysqldump,
-          { host: valores.banco.host, porta: valores.banco.porta, usuario: valores.banco.usuario, senha: valores.banco.senha },
-          alvos.map((a) => a.banco),
-          TABELAS_SEM_DADOS.map((tabela) => `${central}.${tabela}`),
-          zip,
-        );
-        for (const alvo of alvos) {
-          bancos.push({ banco: alvo.banco, arquivo, idEmpresa: alvo.idEmpresa, tabelas: 0, registros: 0 });
+      let ferramenta = 'exportador interno (formato mysqldump, snapshot consistente por banco)';
+      let aviso: string | null = null;
+      const mysqldump = this.opcoesMysqldump();
+      const versao = mysqldump ? await mysqldumpDisponivel(mysqldump.executavel) : null;
+      if (mysqldump && versao) {
+        try {
+          await progresso(3, 'Executando mysqldump');
+          const { arquivo } = await exportarComMysqldump(
+            mysqldump.executavel,
+            mysqldump.conexao,
+            alvos.map((a) => a.banco),
+            TABELAS_SEM_DADOS.map((tabela) => `${central}.${tabela}`),
+            zip,
+            pastaTemporaria,
+            (bytes) => void progresso(Math.min(90, 3 + Math.round(bytes / (1024 * 1024))), 'Executando mysqldump'),
+          );
+          for (const alvo of alvos) bancos.push({ banco: alvo.banco, arquivo, idEmpresa: alvo.idEmpresa, tabelas: 0, registros: 0 });
+          ferramenta = `mysqldump (${versao})`;
+        } catch (erro) {
+          if (zip.entradaIniciada('sql/plataforma-completa.sql')) throw erro;
+          aviso = `mysqldump falhou e foi usado o exportador interno: ${mensagemDeErro(erro)}`;
+          this.logger.warn(`Backup global: ${aviso}`);
         }
-      } else {
-        ferramenta = 'exportador interno (SHOW CREATE TABLE + INSERT, snapshot consistente por banco)';
+      }
+      if (!bancos.length) {
         const estimativas = await Promise.all(alvos.map((a) => contarRegistros(a.fonte).catch(() => 0)));
         const total = Math.max(1, estimativas.reduce((a, b) => a + b, 0));
         let feitos = 0;
@@ -268,6 +284,7 @@ export class BackupsService implements OnApplicationBootstrap, OnModuleDestroy {
             geradoEm: agora.toISOString(),
             geradoPor: { id: usuario.id, nome: usuario.nome },
             ferramenta,
+            aviso,
             bancoCentral: central,
             bancos: bancos.map((b) => ({
               ...b,
@@ -295,7 +312,7 @@ export class BackupsService implements OnApplicationBootstrap, OnModuleDestroy {
           '',
         ].join('\n'),
       );
-      return { registros, detalhes: { bancos: bancos.length, ferramenta: valores.backup.mysqldump ? 'mysqldump' : 'interno' } };
+      return { registros, detalhes: { bancos: bancos.length, ferramenta, ...(aviso ? { aviso } : {}) } };
     });
     return this.obter(escopo, backup.id);
   }
@@ -359,6 +376,15 @@ export class BackupsService implements OnApplicationBootstrap, OnModuleDestroy {
     return Promise.allSettled([...this.emAndamento]);
   }
 
+  private opcoesMysqldump() {
+    const { backup, banco } = this.config.valores;
+    if (!backup.mysqldump) return null;
+    return {
+      executavel: backup.mysqldump,
+      conexao: { host: banco.host, porta: banco.porta, usuario: banco.usuario, senha: banco.senha },
+    };
+  }
+
   private async emProcessamento(escopo: Escopo): Promise<Backup | null> {
     return this.backups.findOne({
       where: { tipo: escopo.tipo, status: 'PROCESSANDO', ...(escopo.tipo === 'EMPRESA' ? { idEmpresa: escopo.idEmpresa! } : {}) },
@@ -384,7 +410,7 @@ export class BackupsService implements OnApplicationBootstrap, OnModuleDestroy {
 
   private agendar(
     backup: Backup,
-    exportar: (zip: EscritorZip, progresso: Progresso) => Promise<{ registros: number; detalhes: Record<string, unknown> }>,
+    exportar: (zip: EscritorZip, progresso: Progresso, pastaTemporaria: string) => Promise<{ registros: number; detalhes: Record<string, unknown> }>,
   ): void {
     const tarefa = this.executar(backup, exportar).finally(() => this.emAndamento.delete(tarefa));
     this.emAndamento.add(tarefa);
@@ -392,7 +418,7 @@ export class BackupsService implements OnApplicationBootstrap, OnModuleDestroy {
 
   private async executar(
     backup: Backup,
-    exportar: (zip: EscritorZip, progresso: Progresso) => Promise<{ registros: number; detalhes: Record<string, unknown> }>,
+    exportar: (zip: EscritorZip, progresso: Progresso, pastaTemporaria: string) => Promise<{ registros: number; detalhes: Record<string, unknown> }>,
   ): Promise<void> {
     const final = this.caminhoAbsoluto(backup.caminho)!;
     const parcial = `${final}.parcial`;
@@ -414,7 +440,7 @@ export class BackupsService implements OnApplicationBootstrap, OnModuleDestroy {
       await progresso(1, 'Preparando');
       const { registros, detalhes } = await Promise.race([
         (async () => {
-          const resultado = await exportar(zip, progresso);
+          const resultado = await exportar(zip, progresso, path.dirname(final));
           await zip.finalizar();
           return resultado;
         })(),

@@ -1,36 +1,38 @@
-import type { DataSource, QueryRunner } from 'typeorm';
+import { randomUUID } from 'node:crypto';
+import { createReadStream } from 'node:fs';
+import { rm } from 'node:fs/promises';
+import path from 'node:path';
+import type { DataSource } from 'typeorm';
+import {
+  RODAPE_SQL,
+  cabecalhoSql,
+  comSnapshot,
+  criacaoDaTabela,
+  dumpTabelas,
+  executarMysqldump,
+  identificador,
+  insercoes,
+  mysqldumpDisponivel,
+  tabelasDoBanco,
+  type ConexaoMysql,
+} from './sql.js';
 import type { EscritorZip } from './zip.js';
 
-export const VERSAO_FORMATO = 1;
+export const VERSAO_FORMATO = 2;
 export const FORMATO = 'atrativa-shore-backup-empresa';
 
-export const TABELAS_EXCLUIDAS: Record<string, string> = {
+export const TABELAS_SEM_DADOS: Record<string, string> = {
   api_credencial: 'hash de senha de acesso',
 };
 
-export const COLUNAS_OMITIDAS: Record<string, string[]> = {
+export const COLUNAS_ANONIMIZADAS: Record<string, string[]> = {
   cad_login: ['senha'],
   cad_empresa: ['chave_liberacao'],
 };
 
-const COLUNAS_USUARIOS = [
-  'id',
-  'id_empresa',
-  'nome',
-  'email',
-  'login',
-  'papel',
-  'id_cargo',
-  'status',
-  'trocar_senha',
-  'id_login_legado',
-  'ultimo_login_em',
-  'criado_em',
-  'atualizado_em',
-  'criado_por',
-];
-
-const TAMANHO_LOTE = 2000;
+const COLUNAS_ANONIMIZADAS_PLATAFORMA: Record<string, string[]> = {
+  plataforma_usuarios: ['senha_hash'],
+};
 
 export interface Progresso {
   (percentual: number, etapa: string): void | Promise<void>;
@@ -38,86 +40,39 @@ export interface Progresso {
 
 export interface ResumoArquivo {
   arquivo: string;
-  tabela: string;
   origem: 'empresa' | 'plataforma';
+  tabelas: Array<{ tabela: string; registros: number }>;
   registros: number;
-  colunasOmitidas: string[];
 }
 
 export interface ResultadoExportacao {
   arquivos: ResumoArquivo[];
   registros: number;
+  ferramenta: string;
+  aviso: string | null;
 }
 
 export interface DadosGeracao {
   idEmpresa: number;
   nomeEmpresa: string;
+  banco: string;
   geradoPor: { id: number; nome: string };
   geradoEm: Date;
   versaoApi: string;
 }
 
+export interface OpcoesExportacao {
+  mysqldump: { executavel: string; conexao: ConexaoMysql } | null;
+  pastaTemporaria: string;
+}
+
 type Linha = Record<string, unknown>;
 
-export function serializarValor(valor: unknown): unknown {
-  if (Buffer.isBuffer(valor)) return { $base64: valor.toString('base64') };
-  if (valor instanceof Date) return valor.toISOString();
-  if (typeof valor === 'bigint') return valor.toString();
-  return valor;
-}
-
-function serializarLinha(linha: Linha): string {
-  const saida: Linha = {};
-  for (const [chave, valor] of Object.entries(linha)) saida[chave] = serializarValor(valor);
-  return JSON.stringify(saida);
-}
-
-function identificador(nome: string): string {
-  if (!/^[A-Za-z0-9_$]+$/.test(nome)) throw new Error(`Nome inválido no banco: ${nome}`);
-  return `\`${nome}\``;
-}
-
-async function* arquivoJson(
-  cabecalho: Record<string, unknown>,
-  linhas: AsyncIterable<Linha>,
-  aoContar: (quantidade: number) => void,
-): AsyncGenerator<string> {
-  const inicio = JSON.stringify(cabecalho);
-  yield `${inicio.slice(0, -1)},"linhas":[`;
-  let primeira = true;
-  let buffer: string[] = [];
-  for await (const linha of linhas) {
-    buffer.push((primeira ? '\n' : ',\n') + serializarLinha(linha));
-    primeira = false;
-    aoContar(1);
-    if (buffer.length >= 500) {
-      yield buffer.join('');
-      buffer = [];
-    }
+async function* juntar(...partes: Array<string | AsyncIterable<string | Buffer>>): AsyncGenerator<string | Buffer> {
+  for (const parte of partes) {
+    if (typeof parte === 'string') yield parte;
+    else for await (const pedaco of parte) yield pedaco;
   }
-  if (buffer.length) yield buffer.join('');
-  yield '\n]}\n';
-}
-
-async function* lerTabela(executor: QueryRunner, tabela: string, colunas: string[], ordem: string[]): AsyncGenerator<Linha> {
-  const lista = colunas.map(identificador).join(', ');
-  const ordenacao = ordem.length ? ` ORDER BY ${ordem.map(identificador).join(', ')}` : '';
-  for (let deslocamento = 0; ; deslocamento += TAMANHO_LOTE) {
-    const linhas = (await executor.query(
-      `SELECT ${lista} FROM ${identificador(tabela)}${ordenacao} LIMIT ${TAMANHO_LOTE} OFFSET ${deslocamento}`,
-    )) as Linha[];
-    for (const linha of linhas) yield linha;
-    if (linhas.length < TAMANHO_LOTE || ordem.length === 0) {
-      if (ordem.length === 0 && linhas.length === TAMANHO_LOTE) {
-        throw new Error(`Tabela ${tabela} sem chave primária e com mais de ${TAMANHO_LOTE} linhas`);
-      }
-      return;
-    }
-  }
-}
-
-async function* deLista(linhas: Linha[]): AsyncGenerator<Linha> {
-  for (const linha of linhas) yield linha;
 }
 
 export async function exportarEmpresa(
@@ -126,167 +81,196 @@ export async function exportarEmpresa(
   zip: EscritorZip,
   dados: DadosGeracao,
   progresso: Progresso,
+  opcoes: OpcoesExportacao,
 ): Promise<ResultadoExportacao> {
-  const arquivos: ResumoArquivo[] = [];
-  const executor = fonteEmpresa.createQueryRunner();
-  await executor.connect();
-  try {
-    await executor.query('SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ');
-    await executor.query('START TRANSACTION WITH CONSISTENT SNAPSHOT, READ ONLY');
-
-    const tabelas = (
-      (await executor.query(
-        "SELECT TABLE_NAME AS nome FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_NAME",
-      )) as Array<{ nome: string }>
-    )
-      .map((t) => t.nome)
-      .filter((nome) => !(nome in TABELAS_EXCLUIDAS));
-
-    const contagens = new Map<string, number>();
-    for (const tabela of tabelas) {
-      const [{ total }] = (await executor.query(`SELECT COUNT(*) AS total FROM ${identificador(tabela)}`)) as Array<{
-        total: number | string;
-      }>;
-      contagens.set(tabela, Number(total));
+  const tabelas = await tabelasDoBanco(fonteEmpresa);
+  const contagens = new Map<string, number>();
+  for (const tabela of tabelas) {
+    if (tabela in TABELAS_SEM_DADOS) {
+      contagens.set(tabela, 0);
+      continue;
     }
-    const [usuarios, cargos, ativacoes, auditoria, [empresaPlataforma], planos] = await Promise.all([
-      plataforma.query(
-        `SELECT ${COLUNAS_USUARIOS.map(identificador).join(', ')} FROM plataforma_usuarios WHERE id_empresa = ? ORDER BY id`,
-        [dados.idEmpresa],
-      ) as Promise<Linha[]>,
-      plataforma.query('SELECT * FROM plataforma_cargos WHERE id_empresa = ? ORDER BY id', [dados.idEmpresa]) as Promise<Linha[]>,
-      plataforma.query('SELECT * FROM plataforma_ativacoes WHERE id_empresa = ? ORDER BY id', [dados.idEmpresa]) as Promise<Linha[]>,
-      plataforma.query('SELECT * FROM plataforma_auditoria WHERE id_empresa = ? ORDER BY id', [dados.idEmpresa]) as Promise<Linha[]>,
-      plataforma.query(
-        `SELECT id, nome, cnpj, email, telefone, cidade, uf, status, id_plano, assinatura_ate, criada_em, ativada_em
-           FROM plataforma_empresas WHERE id = ?`,
-        [dados.idEmpresa],
-      ) as Promise<Linha[]>,
-      plataforma.query('SELECT p.* FROM plataforma_planos p JOIN plataforma_empresas e ON e.id_plano = p.id WHERE e.id = ?', [
-        dados.idEmpresa,
-      ]) as Promise<Linha[]>,
-    ]);
-    const extras: Array<[string, Linha[], string[]]> = [
-      ['plataforma_usuarios', usuarios, ['senha_hash', 'versao_token']],
-      ['plataforma_cargos', cargos, []],
-      ['plataforma_ativacoes', ativacoes, []],
-      ['plataforma_auditoria', auditoria, []],
-    ];
-
-    const total = Math.max(
-      1,
-      [...contagens.values()].reduce((a, b) => a + b, 0) + extras.reduce((a, [, linhas]) => a + linhas.length, 0),
-    );
-    let feitos = 0;
-    const contar = (quantidade: number) => {
-      feitos += quantidade;
-    };
-    const avisar = (etapa: string) => progresso(Math.min(95, Math.round((feitos / total) * 95)), etapa);
-
-    const [cadastro] = (await executor.query(
-      'SELECT * FROM cad_empresa ORDER BY id LIMIT 1',
-    )) as Linha[];
-    const cadastroLimpo: Linha = {};
-    for (const [chave, valor] of Object.entries(cadastro ?? {})) {
-      if (!COLUNAS_OMITIDAS.cad_empresa.includes(chave)) cadastroLimpo[chave] = serializarValor(valor);
-    }
-    await zip.adicionar(
-      'empresa.json',
-      `${JSON.stringify({ empresa: empresaPlataforma ?? null, plano: planos[0] ?? null, cadastro: cadastroLimpo }, null, 2)}\n`,
-    );
-
-    for (const tabela of tabelas) {
-      await avisar(`Exportando ${tabela}`);
-      const colunasBanco = ((await executor.query(`SHOW COLUMNS FROM ${identificador(tabela)}`)) as Array<{ Field: string }>).map(
-        (c) => c.Field,
-      );
-      const omitidas = (COLUNAS_OMITIDAS[tabela] ?? []).filter((c) => colunasBanco.includes(c));
-      const colunas = colunasBanco.filter((c) => !omitidas.includes(c));
-      const chave = (
-        (await executor.query(`SHOW KEYS FROM ${identificador(tabela)} WHERE Key_name = 'PRIMARY'`)) as Array<{
-          Column_name: string;
-          Seq_in_index: number;
-        }>
-      )
-        .sort((a, b) => a.Seq_in_index - b.Seq_in_index)
-        .map((k) => k.Column_name);
-      const arquivo = `dados/empresa/${tabela}.json`;
-      let registros = 0;
-      await zip.adicionar(
-        arquivo,
-        arquivoJson(
-          { tabela, origem: 'empresa', chavePrimaria: chave, colunas, colunasOmitidas: omitidas },
-          lerTabela(executor, tabela, colunas, chave),
-          (n) => {
-            registros += n;
-            contar(n);
-          },
-        ),
-      );
-      arquivos.push({ arquivo, tabela, origem: 'empresa', registros, colunasOmitidas: omitidas });
-    }
-
-    for (const [tabela, linhas, omitidas] of extras) {
-      await avisar(`Exportando ${tabela}`);
-      const arquivo = `dados/plataforma/${tabela}.json`;
-      let registros = 0;
-      await zip.adicionar(
-        arquivo,
-        arquivoJson(
-          { tabela, origem: 'plataforma', chavePrimaria: ['id'], colunas: linhas[0] ? Object.keys(linhas[0]) : [], colunasOmitidas: omitidas },
-          deLista(linhas),
-          (n) => {
-            registros += n;
-            contar(n);
-          },
-        ),
-      );
-      arquivos.push({ arquivo, tabela, origem: 'plataforma', registros, colunasOmitidas: omitidas });
-    }
-
-    const registros = arquivos.reduce((a, b) => a + b.registros, 0);
-    await progresso(97, 'Gravando metadados');
-    await zip.adicionar(
-      'metadados.json',
-      `${JSON.stringify(
-        {
-          formato: FORMATO,
-          versaoFormato: VERSAO_FORMATO,
-          versaoApi: dados.versaoApi,
-          geradoEm: dados.geradoEm.toISOString(),
-          geradoPor: dados.geradoPor,
-          empresa: { id: dados.idEmpresa, nome: dados.nomeEmpresa },
-          codificacao: 'JSON UTF-8; colunas binárias em {"$base64": "..."}; datas como texto do banco',
-          consistencia: 'Tabelas da empresa lidas numa única transação (snapshot consistente).',
-          registros,
-          arquivos,
-          naoIncluido: [
-            ...Object.entries(TABELAS_EXCLUIDAS).map(([tabela, motivo]) => ({ tabela, motivo })),
-            { tabela: 'plataforma_refresh_tokens', motivo: 'sessões de acesso' },
-            { tabela: 'plataforma_codigos_ativacao', motivo: 'códigos de ativação' },
-          ],
-        },
-        null,
-        2,
-      )}\n`,
-    );
-    await zip.adicionar(
-      'LEIA-ME.txt',
-      [
-        `Backup dos dados da empresa ${dados.nomeEmpresa} gerado pelo Atrativa Shore em ${dados.geradoEm.toISOString()}.`,
-        '',
-        'metadados.json  versão do formato, data, responsável e lista de arquivos com a quantidade de registros',
-        'empresa.json    dados cadastrais e configurações comerciais da empresa',
-        'dados/empresa/  uma tabela do banco da empresa por arquivo, com os identificadores originais',
-        'dados/plataforma/ usuários, cargos, ativações e auditoria desta empresa',
-        '',
-        'Não contém senhas, hashes de senha, tokens ou códigos de ativação.',
-        '',
-      ].join('\n'),
-    );
-    return { arquivos, registros };
-  } finally {
-    await executor.query('ROLLBACK').catch(() => undefined);
-    await executor.release();
+    const [{ total }] = (await fonteEmpresa.query(`SELECT COUNT(*) AS total FROM ${identificador(tabela)}`)) as Array<{
+      total: number | string;
+    }>;
+    contagens.set(tabela, Number(total));
   }
+
+  const id = [dados.idEmpresa];
+  const [empresas, planos, cargos, usuarios, ativacoes, auditoria] = (await Promise.all([
+    plataforma.query('SELECT * FROM plataforma_empresas WHERE id = ?', id),
+    plataforma.query('SELECT p.* FROM plataforma_planos p JOIN plataforma_empresas e ON e.id_plano = p.id WHERE e.id = ?', id),
+    plataforma.query('SELECT * FROM plataforma_cargos WHERE id_empresa = ? ORDER BY id', id),
+    plataforma.query('SELECT * FROM plataforma_usuarios WHERE id_empresa = ? ORDER BY id', id),
+    plataforma.query('SELECT * FROM plataforma_ativacoes WHERE id_empresa = ? ORDER BY id', id),
+    plataforma.query('SELECT * FROM plataforma_auditoria WHERE id_empresa = ? ORDER BY id', id),
+  ])) as Linha[][];
+  const central: Array<[string, Linha[]]> = [
+    ['plataforma_empresas', empresas],
+    ['plataforma_planos', planos],
+    ['plataforma_cargos', cargos],
+    ['plataforma_usuarios', usuarios],
+    ['plataforma_ativacoes', ativacoes],
+    ['plataforma_auditoria', auditoria],
+  ];
+
+  const totalEmpresa = [...contagens.values()].reduce((a, b) => a + b, 0);
+  const total = Math.max(1, totalEmpresa + central.reduce((a, [, linhas]) => a + linhas.length, 0));
+  let feitos = 0;
+  const avisar = (etapa: string) => progresso(Math.min(95, Math.round((feitos / total) * 95)), etapa);
+
+  const cadastro = tabelas.includes('cad_empresa')
+    ? ((await fonteEmpresa.query('SELECT * FROM cad_empresa ORDER BY id LIMIT 1')) as Linha[])[0]
+    : undefined;
+  const cadastroLimpo: Linha = {};
+  for (const [chave, valor] of Object.entries(cadastro ?? {})) {
+    if (!COLUNAS_ANONIMIZADAS.cad_empresa.includes(chave)) cadastroLimpo[chave] = Buffer.isBuffer(valor) ? null : valor;
+  }
+  await zip.adicionar(
+    'empresa.json',
+    `${JSON.stringify({ empresa: empresas[0] ?? null, plano: planos[0] ?? null, cadastro: cadastroLimpo }, null, 2)}\n`,
+  );
+
+  const sensiveis = tabelas.filter((t) => t in TABELAS_SEM_DADOS || t in COLUNAS_ANONIMIZADAS);
+  const opcoesDump = { semDados: Object.keys(TABELAS_SEM_DADOS), mascarar: COLUNAS_ANONIMIZADAS };
+  const arquivoEmpresa = 'dados/empresa.sql';
+  let ferramenta = 'exportador interno (formato mysqldump)';
+  let aviso: string | null = null;
+  let feito = false;
+
+  const versao = opcoes.mysqldump ? await mysqldumpDisponivel(opcoes.mysqldump.executavel) : null;
+  if (opcoes.mysqldump && versao) {
+    const temporario = path.join(opcoes.pastaTemporaria, `${randomUUID()}.sql.parcial`);
+    try {
+      await progresso(3, 'Executando mysqldump');
+      const [{ estimado }] = (await fonteEmpresa.query(
+        "SELECT COALESCE(SUM(DATA_LENGTH), 0) AS estimado FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE'",
+      )) as Array<{ estimado: number | string }>;
+      const esperado = Math.max(1, (Number(estimado) || 0) * 1.3);
+      await executarMysqldump(
+        opcoes.mysqldump.executavel,
+        opcoes.mysqldump.conexao,
+        [...sensiveis.map((t) => `--ignore-table=${dados.banco}.${t}`), dados.banco],
+        temporario,
+        (bytes) => {
+          feitos = Math.min(totalEmpresa, Math.round((bytes / esperado) * totalEmpresa));
+          void avisar('Executando mysqldump');
+        },
+      );
+      await comSnapshot(fonteEmpresa, (executor) =>
+        zip.adicionar(
+          arquivoEmpresa,
+          juntar(
+            createReadStream(temporario),
+            sensiveis.length ? `\n${cabecalhoSql('tabelas com credenciais (senhas exportadas como NULL)', null)}` : '',
+            dumpTabelas(executor, sensiveis, opcoesDump, () => undefined),
+            sensiveis.length ? RODAPE_SQL : '',
+          ),
+        ),
+      );
+      feitos = totalEmpresa;
+      ferramenta = `mysqldump (${versao})`;
+      feito = true;
+    } catch (erro) {
+      aviso = `mysqldump falhou e foi usado o exportador interno: ${(erro as Error).message.slice(0, 200)}`;
+      feitos = 0;
+      if (zip.entradaIniciada(arquivoEmpresa)) throw erro;
+    } finally {
+      await rm(temporario, { force: true }).catch(() => undefined);
+    }
+  }
+
+  if (!feito) {
+    await comSnapshot(fonteEmpresa, (executor) =>
+      zip.adicionar(
+        arquivoEmpresa,
+        juntar(
+          cabecalhoSql(`banco da empresa ${dados.nomeEmpresa}`, null),
+          dumpTabelas(executor, tabelas, opcoesDump, (tabela, linhas) => {
+            feitos += linhas;
+            if (linhas === 0) void avisar(`Exportando ${tabela}`);
+          }),
+          RODAPE_SQL,
+        ),
+      ),
+    );
+  }
+
+  await avisar('Exportando dados da plataforma');
+  const partesCentral: string[] = [cabecalhoSql(`dados da empresa ${dados.nomeEmpresa} no banco central`, null)];
+  for (const [tabela, linhas] of central) {
+    partesCentral.push(`--\n-- Tabela ${identificador(tabela)} (somente registros desta empresa)\n--\n\n`);
+    partesCentral.push(`${await criacaoDaTabela(plataforma, tabela, true)};\n\n`);
+    const mascarar = COLUNAS_ANONIMIZADAS_PLATAFORMA[tabela] ?? [];
+    if (mascarar.length) partesCentral.push(`-- ${tabela}: colunas ${mascarar.join(', ')} exportadas como NULL (credenciais)\n`);
+    partesCentral.push(insercoes(tabela, linhas, mascarar), '\n');
+    feitos += linhas.length;
+  }
+  partesCentral.push(RODAPE_SQL);
+  await zip.adicionar('dados/plataforma.sql', partesCentral.join(''));
+
+  const arquivos: ResumoArquivo[] = [
+    {
+      arquivo: arquivoEmpresa,
+      origem: 'empresa',
+      tabelas: tabelas.map((tabela) => ({ tabela, registros: contagens.get(tabela) ?? 0 })),
+      registros: totalEmpresa,
+    },
+    {
+      arquivo: 'dados/plataforma.sql',
+      origem: 'plataforma',
+      tabelas: central.map(([tabela, linhas]) => ({ tabela, registros: linhas.length })),
+      registros: central.reduce((a, [, linhas]) => a + linhas.length, 0),
+    },
+  ];
+  const registros = arquivos.reduce((a, b) => a + b.registros, 0);
+
+  await progresso(97, 'Gravando metadados');
+  await zip.adicionar(
+    'metadados.json',
+    `${JSON.stringify(
+      {
+        formato: FORMATO,
+        versaoFormato: VERSAO_FORMATO,
+        versaoApi: dados.versaoApi,
+        geradoEm: dados.geradoEm.toISOString(),
+        geradoPor: dados.geradoPor,
+        empresa: { id: dados.idEmpresa, nome: dados.nomeEmpresa },
+        ferramenta,
+        aviso,
+        codificacao: 'SQL UTF-8 (utf8mb4), binários em hexadecimal',
+        consistencia: 'Banco da empresa exportado numa única transação (--single-transaction / snapshot consistente).',
+        registros,
+        arquivos,
+        colunasAnonimizadas: { ...COLUNAS_ANONIMIZADAS, ...COLUNAS_ANONIMIZADAS_PLATAFORMA },
+        naoIncluido: [
+          ...Object.entries(TABELAS_SEM_DADOS).map(([tabela, motivo]) => ({ tabela, motivo: `${motivo} (só a estrutura)` })),
+          { tabela: 'plataforma_refresh_tokens', motivo: 'sessões de acesso' },
+          { tabela: 'plataforma_codigos_ativacao', motivo: 'códigos de ativação' },
+        ],
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  await zip.adicionar(
+    'LEIA-ME.txt',
+    [
+      `Backup dos dados da empresa ${dados.nomeEmpresa} gerado pelo Atrativa Shore em ${dados.geradoEm.toISOString()}.`,
+      '',
+      'dados/empresa.sql     dump MySQL de todas as tabelas do banco da empresa (estrutura e dados, ids originais)',
+      'dados/plataforma.sql  registros desta empresa no banco central: empresa, plano, cargos, usuários, ativações e auditoria',
+      'empresa.json          dados cadastrais e configurações comerciais, para consulta rápida',
+      'metadados.json        versão do formato, data, responsável, ferramenta e quantidade de registros por tabela',
+      '',
+      'Restaurar o banco da empresa num banco novo e vazio:',
+      '  mysql -u <usuario> -p -e "CREATE DATABASE <novo_banco> CHARACTER SET utf8mb4"',
+      '  mysql -u <usuario> -p <novo_banco> < dados/empresa.sql',
+      '',
+      'Não contém senhas, hashes de senha, tokens nem códigos de ativação: essas colunas saem como NULL.',
+      'Depois de restaurar, os usuários precisam receber uma senha temporária nova.',
+      '',
+    ].join('\n'),
+  );
+  return { arquivos, registros, ferramenta, aviso };
 }
