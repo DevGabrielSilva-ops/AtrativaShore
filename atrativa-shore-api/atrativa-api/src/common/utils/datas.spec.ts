@@ -1,4 +1,5 @@
 import {
+  instanteNoFuso,
   adicionarMeses,
   dataIsoValida,
   dataNoFuso,
@@ -39,5 +40,18 @@ describe('datas', () => {
     expect(dataIsoValida('2026-02-28')).toBe(true);
     expect(normalizarDataLegada('0000-00-00')).toBeNull();
     expect(horaDoControle('20260824141339')).toBe('14:13:39');
+  });
+});
+
+describe('instanteNoFuso', () => {
+  it('converte o início do dia local para o instante UTC', () => {
+    expect(instanteNoFuso('2026-11-05', '00:00:00', 'America/Sao_Paulo').toISOString()).toBe('2026-11-05T03:00:00.000Z');
+    expect(instanteNoFuso('2026-11-05', '16:52:00', 'America/Sao_Paulo').toISOString()).toBe('2026-11-05T19:52:00.000Z');
+    expect(instanteNoFuso('2026-11-05', '00:00:00', 'UTC').toISOString()).toBe('2026-11-05T00:00:00.000Z');
+  });
+
+  it('respeita o horário de verão de fusos que ainda o usam', () => {
+    expect(instanteNoFuso('2026-07-01', '00:00:00', 'America/New_York').toISOString()).toBe('2026-07-01T04:00:00.000Z');
+    expect(instanteNoFuso('2026-12-01', '00:00:00', 'America/New_York').toISOString()).toBe('2026-12-01T05:00:00.000Z');
   });
 });

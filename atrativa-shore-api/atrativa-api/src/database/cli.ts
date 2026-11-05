@@ -3,13 +3,13 @@ import bcrypt from 'bcrypt';
 import { DataSource } from 'typeorm';
 import { carregarConfiguracao, type Configuracao } from '../config/configuracao.js';
 import { PERFIL_ACESSO_WEB, bancoExiste, migrarBancoEmpresa, nomeBancoValido } from '../tenancy/provisionamento.js';
+import { iniciarFonteUtc } from './fonte-utc.js';
 import { opcoesBancoEmpresa, opcoesPlataforma, opcoesServidor } from './opcoes-banco.js';
 
 type Comando = (config: Configuracao, argumentos: string[]) => Promise<void>;
 
 async function comPlataforma<T>(config: Configuracao, acao: (fonte: DataSource) => Promise<T>): Promise<T> {
-  const fonte = new DataSource(opcoesPlataforma(config));
-  await fonte.initialize();
+  const fonte = await iniciarFonteUtc(opcoesPlataforma(config));
   try {
     return await acao(fonte);
   } finally {

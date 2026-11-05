@@ -3,7 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Repository } from 'typeorm';
 import { CONEXAO_PLATAFORMA } from '../auth/sessao-usuario.service.js';
 import { offset, paginado, type Paginado } from '../common/dto/paginacao.dto.js';
+import { adicionarDias, instanteNoFuso } from '../common/utils/datas.js';
 import { semSegredos } from '../common/utils/segredos.js';
+import { ConfiguracaoService } from '../config/configuracao.service.js';
 import { PlataformaUsuario, RegistroAuditoria } from '../plataforma/entities/index.js';
 import { contextoAtual } from '../tenancy/contexto.js';
 
@@ -14,6 +16,14 @@ export interface NovoRegistro {
   detalhes?: unknown;
   idUsuario?: number | null;
   idEmpresa?: number | null;
+}
+
+const dataHora = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+
+export function formatarDataHora(valor: string | null | undefined): string {
+  if (!valor) return '—';
+  const data = new Date(/[zZ]|[+-]\d{2}:\d{2}$/.test(valor) ? valor : valor.replace(' ', 'T'));
+  return Number.isNaN(data.getTime()) ? valor : dataHora.format(data);
 }
 
 export interface FiltroAuditoria {
@@ -45,6 +55,7 @@ export class AuditoriaService {
   constructor(
     @InjectRepository(RegistroAuditoria, CONEXAO_PLATAFORMA) private readonly registros: Repository<RegistroAuditoria>,
     @InjectRepository(PlataformaUsuario, CONEXAO_PLATAFORMA) private readonly usuarios: Repository<PlataformaUsuario>,
+    private readonly config: ConfiguracaoService,
   ) {}
 
   async registrar(novo: NovoRegistro): Promise<void> {
@@ -74,8 +85,9 @@ export class AuditoriaService {
     if (filtro.idEmpresa !== undefined) consulta.andWhere('a.idEmpresa = :idEmpresa', { idEmpresa: filtro.idEmpresa });
     if (filtro.idUsuario !== undefined) consulta.andWhere('a.idUsuario = :idUsuario', { idUsuario: filtro.idUsuario });
     if (filtro.acao) consulta.andWhere('a.acao LIKE :acao', { acao: `${filtro.acao}%` });
-    if (filtro.inicio) consulta.andWhere('a.dataHora >= :inicio', { inicio: `${filtro.inicio} 00:00:00` });
-    if (filtro.fim) consulta.andWhere('a.dataHora <= :fim', { fim: `${filtro.fim} 23:59:59` });
+    const fuso = this.config.fusoHorario;
+    if (filtro.inicio) consulta.andWhere('a.dataHora >= :inicio', { inicio: instanteNoFuso(filtro.inicio, '00:00:00', fuso) });
+    if (filtro.fim) consulta.andWhere('a.dataHora < :fim', { fim: instanteNoFuso(adicionarDias(filtro.fim, 1), '00:00:00', fuso) });
     const [linhas, total] = await consulta.skip(offset(filtro)).take(filtro.limit).getManyAndCount();
     const ids = [...new Set(linhas.map((l) => l.idUsuario).filter((id): id is number => id !== null))];
     const nomes = new Map(

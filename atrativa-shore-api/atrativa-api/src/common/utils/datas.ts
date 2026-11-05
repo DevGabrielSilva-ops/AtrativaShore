@@ -43,6 +43,16 @@ export function horaNoFuso(data: Date, fusoHorario: string): string {
   return `${p.hora}:${p.minuto}:${p.segundo}`;
 }
 
+export function instanteNoFuso(dataIso: string, hora: string, fusoHorario: string): Date {
+  const comoUtc = Date.parse(`${dataIso}T${hora}Z`);
+  const p = partesNoFuso(new Date(comoUtc), fusoHorario);
+  const visto = Date.parse(`${p.ano}-${p.mes}-${p.dia}T${p.hora}:${p.minuto}:${p.segundo}Z`);
+  const tentativa = comoUtc - (visto - comoUtc);
+  const q = partesNoFuso(new Date(tentativa), fusoHorario);
+  const conferido = Date.parse(`${q.ano}-${q.mes}-${q.dia}T${q.hora}:${q.minuto}:${q.segundo}Z`);
+  return new Date(tentativa + (comoUtc - conferido));
+}
+
 export function gerarControle(data: Date, fusoHorario: string): string {
   const p = partesNoFuso(data, fusoHorario);
   return `${p.ano}${p.mes}${p.dia}${p.hora}${p.minuto}${p.segundo}`;
