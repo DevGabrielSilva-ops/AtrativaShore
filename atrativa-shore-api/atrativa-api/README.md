@@ -146,6 +146,7 @@ Todas estão em `.env.example`. As obrigatórias são `DB_HOST`, `DB_USERNAME`, 
 | `BACKUP_DIR` | armazenamento/backups | Pasta dos ZIPs de backup (fora do Git e de qualquer pasta pública) |
 | `BACKUP_RETENCAO_HORAS` | 24 | Tempo (1 a 720 h) que o arquivo fica disponível para download antes de ser apagado |
 | `MYSQLDUMP_PATH` | mysqldump | Caminho do `mysqldump` usado nos backups; `desativado` força o exportador interno (usado também quando o `mysqldump` não é encontrado) |
+| `BACKUP_IMPORTACAO_MAX_MB` | 512 | Tamanho máximo do arquivo enviado em Carregar backup |
 | `E2E_DB_DATABASE`, `E2E_LOGIN`, `E2E_SENHA` | — | Testes e2e (seção 10) |
 
 ---
@@ -297,6 +298,13 @@ Todos com prefixo `/api/v1`. Detalhes de cada campo no Swagger.
 | **Backup global** (somente superadministrador) |||
 | POST, GET | `/plataforma/backups` | Inicia / lista backups completos da plataforma |
 | GET | `/plataforma/backups/:id`, `/plataforma/backups/:id/download` | Progresso / download |
+| **Carregar backup** (permissão `backup.restaurar`) |||
+| POST | `/importacoes` | Envia `arquivo` (multipart: `.zip` do Atrativa Shore ou dump `.sql`) para análise; não altera dados |
+| GET | `/importacoes`, `/importacoes/:id` | Histórico, progresso, análise e resultado |
+| POST | `/importacoes/:id/confirmar` | `{ "confirmacao": "SUBSTITUIR" }`: gera o backup de segurança e substitui os dados |
+| POST | `/importacoes/:id/cancelar` | Descarta uma importação analisada |
+| GET | `/importacoes/:id/senhas` | Senhas temporárias dos funcionários criados (uma única vez) |
+| POST | `/backups/:id/restaurar` | Prepara a restauração de um backup do histórico |
 | GET | `/health` | Saúde da API e do banco (público) |
 
 ---
@@ -441,6 +449,17 @@ Lógico (`estornado = 1`, como no desktop). Devolve os itens ao estoque, retira 
 - Auditoria: `backup.gerado`, `backup.falhou` e `backup.baixado`.
 - Requer `npm run plataforma:migrar` para criar `plataforma_backups` (migration `CriarBackups1762400000002`, só cria a tabela).
 
+### Carregar backup (restauração e migração do sistema anterior)
+
+- Aceita o ZIP do Atrativa Shore (formato 1 em JSON ou 2 em SQL) e qualquer dump `.sql` do MySQL, inclusive o `mysqldump` 8.19 do MySQL 4.0 do sistema anterior (`TYPE=MyISAM`, `INSERT` sem lista de colunas, textos em Latin-1/CP850).
+- **O SQL enviado nunca é executado.** Um leitor próprio separa as instruções, ignora tudo que não é `CREATE TABLE` ou `INSERT`/`REPLACE` (como `DROP`, `USE`, `GRANT` e `UPDATE`) e extrai só os valores literais. Os dados são gravados com `INSERT` parametrizado, apenas nas tabelas e colunas que existem no banco da empresa do usuário.
+- **Duas etapas.** A análise não altera nada e mostra tabelas, registros, colunas que ficam vazias (ex.: `vr_pix`, `limite_carne` no dump antigo), tabelas ignoradas, avisos e os usuários do sistema anterior que serão criados. A confirmação exige digitar `SUBSTITUIR`.
+- **Substituição.** Para cada tabela presente no arquivo, os dados atuais são apagados e substituídos com os ids originais; tabelas ausentes no arquivo não são tocadas. Nunca entram `api_credencial`, `api_migrations` nem `cad_login.senha`. A `chave_liberacao` atual é mantida quando o arquivo a traz vazia.
+- **Segurança dos dados.** Antes de gravar, a API gera um backup de segurança da empresa (`...-antes-da-restauracao.zip`, guardado por 7 dias); se ele falhar, nada é alterado. As tabelas MyISAM do legado não têm transação: se a gravação falhar no meio, a mensagem indica o backup de segurança, que pode ser carregado com um clique. Durante a restauração, alterações na empresa respondem 503.
+- **Acessos.** Os funcionários atuais continuam entrando normalmente: se o login espelho deles em `cad_login` mudou, a API cria outro e religa. Os usuários do sistema anterior (perfis que não são `ACESSO WEB`) viram funcionários (ADMINISTRADOR → administrador, demais → vendedor) com senha temporária mostrada uma única vez. Acima do limite do plano, ficam inativos.
+- Auditoria: `backup.restaurado`, `backup.restauracao_falhou`, `funcionario.importado`. Requer `npm run plataforma:migrar` (migration `CriarImportacoes1762400000003`, só cria `plataforma_importacoes`).
+- Os arquivos enviados ficam em `BACKUP_DIR/importacoes/` (fora do Git, sem acesso público) e são apagados após a restauração, o cancelamento ou 24 h sem confirmação.
+
 ### Exclusões
 
 O banco não tem chaves estrangeiras, então a API protege o histórico: cliente com vendas/carnês, produto com vendas/movimentação/saldo e fornecedor com produtos/entradas **não podem ser excluídos (409)**.
@@ -458,9 +477,9 @@ npm test                 # unitários (não precisam de banco)
 npm run test:e2e         # inicialização da API com banco simulado + fluxo SaaS real (este, só com E2E_SAAS=true)
 ```
 
-- **Unitários:** ZIP do backup (integridade e CRC), dump SQL da empresa sem senhas e filtrado pela empresa, mysqldump (argumentos, senha fora da linha de comando, volta ao exportador interno quando falha), geração/falha/expiração/isolamento do serviço de backups e permissões; cálculo e registro de venda, limite do carnê, operações de saldo, relatórios, códigos e datas; guard de acesso (plataforma × empresa, empresa suspensa, permissões, senha temporária), permissões por papel, códigos de ativação, remoção de segredos da auditoria e **isolamento do contexto por empresa com requisições concorrentes**.
+- **Unitários:** leitor de dumps (MySQL 4 e 8, escapes, comentários, pedaços de qualquer tamanho, instruções perigosas ignoradas), análise e substituição contra o esquema real, fluxo de restauração (backup de segurança, falha sem alterar dados, religação de logins, usuários com senha temporária, isolamento, bloqueio 503); ZIP do backup (integridade e CRC), dump SQL da empresa sem senhas e filtrado pela empresa, mysqldump (argumentos, senha fora da linha de comando, volta ao exportador interno quando falha), geração/falha/expiração/isolamento do serviço de backups e permissões; cálculo e registro de venda, limite do carnê, operações de saldo, relatórios, códigos e datas; guard de acesso (plataforma × empresa, empresa suspensa, permissões, senha temporária), permissões por papel, códigos de ativação, remoção de segredos da auditoria e **isolamento do contexto por empresa com requisições concorrentes**.
 - **Inicialização (`test/inicializacao.e2e-spec.ts`):** sobe o `AppModule` real com banco simulado e confere 401/400, envelope de resposta e todas as rotas no Swagger.
-- **Fluxo SaaS (`test/api.e2e-spec.ts`):** com MySQL real, cria bancos temporários `e2e_*`, ativa duas empresas por código, confere que produtos, clientes e vendas não cruzam, que empresa não acessa `/plataforma`, permissões do vendedor, senha temporária, suspensão/reativação, rotação do refresh token, auditoria, fechamento de caixa seguido de backup (download, integridade, dados só da empresa, 404 para outra empresa, 403 para gerente e superadministrador) e backup global; no fim apaga os bancos `e2e_*` que criou. Para rodar, use um MySQL de teste e defina `E2E_SAAS=true` (e `E2E_DB_*` se for outro servidor).
+- **Fluxo SaaS (`test/api.e2e-spec.ts`):** com MySQL real, cria bancos temporários `e2e_*`, ativa duas empresas por código, confere que produtos, clientes e vendas não cruzam, que empresa não acessa `/plataforma`, permissões do vendedor, senha temporária, suspensão/reativação, rotação do refresh token, auditoria, fechamento de caixa seguido de backup (download, integridade, dados só da empresa, 404 para outra empresa, 403 para gerente e superadministrador) backup global, carga de um dump no formato do sistema anterior na loja B (senhas temporárias, backup de segurança, dados só na loja B) e restauração do ZIP da loja A pela própria loja; no fim apaga os bancos `e2e_*` que criou. Para rodar, use um MySQL de teste e defina `E2E_SAAS=true` (e `E2E_DB_*` se for outro servidor).
 
 ---
 

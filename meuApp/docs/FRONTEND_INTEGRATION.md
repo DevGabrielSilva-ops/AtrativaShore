@@ -119,3 +119,10 @@ src/
 - **Baixar backup** chama `GET /backups/:id/download` com o token, recebe o ZIP como blob e o navegador salva com o nome enviado pelo servidor (`backupService.baixar`, `baixarArquivo` em `services/api.ts`). Erros (expirado, sem permissão) aparecem na própria tela.
 - Histórico: Configurações › Cópias de segurança (atalho no cabeçalho do Caixa), com arquivo, data, responsável, tamanho, status e download enquanto disponível.
 - Superadministrador: Plataforma › Backups, para o backup completo de todas as empresas.
+
+## Carregar backup
+
+- Em Configurações › Carregar backup (permissão `backup.restaurar`): escolher ou arrastar o `.zip`/`.sql` → **Enviar e analisar** (envio com progresso via `XMLHttpRequest`, `enviarArquivo` em `services/api.ts`) → análise com tabelas, registros, avisos e usuários a criar → digitar `SUBSTITUIR` → **Substituir dados** → progresso → resultado.
+- As senhas temporárias dos funcionários criados aparecem uma única vez (**Ver senhas temporárias**, `GET /importacoes/:id/senhas`).
+- No histórico de cópias, **Restaurar** prepara a restauração de um backup já gerado (`POST /backups/:id/restaurar`). Se a restauração falhar, a tela oferece **Restaurar backup de segurança**.
+- Ao reabrir a tela, a importação em andamento (ou pronta para confirmar) é retomada.
