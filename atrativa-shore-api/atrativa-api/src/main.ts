@@ -16,6 +16,7 @@ async function iniciar(): Promise<void> {
     origin: valores.origensCors,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Content-Disposition'],
     credentials: true,
   });
   app.useGlobalPipes(

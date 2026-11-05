@@ -1,10 +1,12 @@
 import type { INestApplication } from '@nestjs/common';
 import { ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { createHash } from 'node:crypto';
 import bcrypt from 'bcrypt';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { DataSource } from 'typeorm';
+import { lerZip } from '../src/backup/ler-zip.js';
 
 try {
   process.loadEnvFile('.env');
@@ -45,6 +47,7 @@ describe.skipIf(!habilitado)('Plataforma SaaS (e2e, MySQL real)', () => {
   let dono: ReturnType<typeof com>;
   let lojaA: ReturnType<typeof com>;
   let lojaB: ReturnType<typeof com>;
+  let idEmpresaA = 0;
 
   beforeAll(async () => {
     const { carregarConfiguracao } = await import('../src/config/configuracao.js');
@@ -111,6 +114,7 @@ describe.skipIf(!habilitado)('Plataforma SaaS (e2e, MySQL real)', () => {
     const b = await ativarNovaEmpresa(`Loja B ${marca}`, `admin-b-${marca}@e2e.test`);
     lojaA = a.cliente;
     lojaB = b.cliente;
+    idEmpresaA = a.idEmpresa;
 
     const reuso = await http().post('/api/v1/ativacao/validar').send({ codigo: a.codigo });
     expect(reuso.status).toBe(409);
@@ -224,5 +228,103 @@ describe.skipIf(!habilitado)('Plataforma SaaS (e2e, MySQL real)', () => {
     const daLojaA = await lojaA.get('/auditoria?limit=100').expect(200);
     const empresas = new Set(daLojaA.body.data.map((r: { idEmpresa: number }) => r.idEmpresa));
     expect(empresas.size).toBe(1);
+  });
+
+  const binario = (resposta: request.Response, pronto: (erro: Error | null, corpo: unknown) => void) => {
+    const fluxo = resposta as unknown as NodeJS.ReadableStream;
+    const partes: Buffer[] = [];
+    fluxo.on('data', (parte: Buffer) => partes.push(parte));
+    fluxo.on('end', () => pronto(null, Buffer.concat(partes)));
+  };
+
+  async function aguardarBackup(cliente: ReturnType<typeof com>, base: string, id: number) {
+    for (let tentativa = 0; tentativa < 120; tentativa += 1) {
+      const atual = await cliente.get(`${base}/${id}`).expect(200);
+      if (atual.body.data.status !== 'PROCESSANDO') return atual.body.data as { status: string; nomeArquivo: string; sha256: string; erro: string | null };
+      await new Promise((resolver) => setTimeout(resolver, 500));
+    }
+    throw new Error('Backup não terminou a tempo');
+  }
+
+  it('fecha o caixa, gera o backup da empresa e baixa um ZIP só com os dados dela', { timeout: 120_000 }, async () => {
+    await lojaA.post('/caixa/abrir').send({ valorAbertura: 50 }).expect(201);
+    const fechado = await lojaA.post('/caixa/fechar').send({}).expect(200);
+    const historicoAntes = await lojaA.get('/caixa/historico').expect(200);
+
+    const pedido = await lojaA.post('/backups').expect(202);
+    expect(pedido.body.data).toMatchObject({ tipo: 'EMPRESA', status: 'PROCESSANDO' });
+    const id: number = pedido.body.data.id;
+    const pronto = await aguardarBackup(lojaA, '/backups', id);
+    expect(pronto.status).toBe('CONCLUIDO');
+    expect(pronto.nomeArquivo).toMatch(new RegExp(`^atrativa-shore-backup-loja-a-${marca}-\\d{4}-\\d{2}-\\d{2}\\.zip$`));
+
+    const download = await lojaA.get(`/backups/${id}/download`).buffer(true).parse(binario).expect(200);
+    expect(download.headers['content-type']).toBe('application/zip');
+    expect(download.headers['content-disposition']).toContain(`filename="${pronto.nomeArquivo}"`);
+    const zip = download.body as Buffer;
+    expect(createHash('sha256').update(zip).digest('hex')).toBe(pronto.sha256);
+    const entradas = lerZip(zip);
+    const json = (nome: string) => JSON.parse(entradas.get(nome)!.conteudo.toString('utf8'));
+
+    const metadados = json('metadados.json');
+    expect(metadados).toMatchObject({ formato: 'atrativa-shore-backup-empresa', versaoFormato: 1, empresa: { id: idEmpresaA } });
+    const produtos = json('dados/empresa/cad_produtos.json').linhas as Array<Record<string, unknown>>;
+    expect(produtos.filter((p) => JSON.stringify(p).includes(marca))).toHaveLength(1);
+    expect(JSON.stringify(json('dados/empresa/cad_clientes.json'))).toContain(`CLIENTE SOMENTE A ${marca}`);
+    expect(json('dados/empresa/mv_fechamento.json').linhas.length).toBeGreaterThanOrEqual(1);
+    expect(entradas.has('dados/empresa/api_credencial.json')).toBe(false);
+    const usuarios = json('dados/plataforma/plataforma_usuarios.json').linhas as Array<Record<string, unknown>>;
+    expect(usuarios.every((u) => u.id_empresa === idEmpresaA)).toBe(true);
+    const todo = [...entradas.values()].map((e) => e.conteudo.toString('utf8')).join('\n');
+    expect(todo).not.toMatch(/senha-admin-e2e|nova-senha-vendedor|\$2[aby]\$/);
+    expect(todo).not.toContain(`Loja B ${marca}`);
+
+    const historicoDepois = await lojaA.get('/caixa/historico').expect(200);
+    expect(historicoDepois.body).toEqual(historicoAntes.body);
+    expect(fechado.body.data.resumo).toBeTruthy();
+
+    const lista = await lojaA.get('/backups').expect(200);
+    expect(lista.body.data[0]).toMatchObject({ id, status: 'CONCLUIDO', downloads: 1, disponivel: true });
+  });
+
+  it('impede outra empresa, funcionários sem permissão e o superadministrador de usar o backup da empresa', { timeout: 60_000 }, async () => {
+    const lista = await lojaA.get('/backups').expect(200);
+    const id: number = lista.body.data[0].id;
+    await lojaB.get(`/backups/${id}`).expect(404);
+    await lojaB.get(`/backups/${id}/download`).expect(404);
+    expect((await lojaB.get('/backups').expect(200)).body.meta.total).toBe(0);
+    await http().get(`/api/v1/backups/${id}/download`).expect(401);
+    await dono.post('/backups').expect(403);
+    await dono.get(`/plataforma/backups/${id}`).expect(404);
+    await lojaA.post('/plataforma/backups').expect(403);
+
+    const criado = await lojaA.post('/funcionarios').send({ nome: 'Gerente E2E', login: `ger-${marca}`, papel: 'MANAGER' }).expect(201);
+    const login = await entrar(`ger-${marca}`, criado.body.data.senhaTemporaria);
+    const troca = await com(login.body.data.accessToken)
+      .patch('/auth/senha')
+      .send({ senhaAtual: criado.body.data.senhaTemporaria, novaSenha: 'nova-senha-gerente' })
+      .expect(200);
+    const gerente = com(troca.body.data.accessToken);
+    await gerente.post('/backups').expect(403);
+    await gerente.get(`/backups/${id}/download`).expect(403);
+  });
+
+  it('gera o backup global apenas para o superadministrador, com todos os bancos', { timeout: 120_000 }, async () => {
+    const pedido = await dono.post('/plataforma/backups').expect(202);
+    const pronto = await aguardarBackup(dono, '/plataforma/backups', pedido.body.data.id);
+    expect(pronto.status).toBe('CONCLUIDO');
+    const download = await dono.get(`/plataforma/backups/${pedido.body.data.id}/download`).buffer(true).parse(binario).expect(200);
+    const entradas = lerZip(download.body as Buffer);
+    const arquivos = [...entradas.keys()];
+    expect(arquivos).toContain(`sql/${BANCO_PLATAFORMA}.sql`);
+    expect(arquivos.filter((a) => a.startsWith(`sql/${PREFIXO_EMPRESA}`))).toHaveLength(2);
+    const central = entradas.get(`sql/${BANCO_PLATAFORMA}.sql`)!.conteudo.toString('utf8');
+    expect(central).toContain('CREATE TABLE `plataforma_empresas`');
+    expect(central).not.toMatch(/INSERT INTO `plataforma_refresh_tokens`/);
+    expect((await lojaA.get('/backups').expect(200)).body.data.every((b: { tipo: string }) => b.tipo === 'EMPRESA')).toBe(true);
+
+    const auditoria = await dono.get('/plataforma/auditoria?acao=backup.&limit=100').expect(200);
+    const acoes = auditoria.body.data.map((r: { acao: string }) => r.acao);
+    expect(acoes).toEqual(expect.arrayContaining(['backup.gerado', 'backup.baixado']));
   });
 });
