@@ -223,6 +223,7 @@ export interface EstadoBancoEmpresa {
     tabelasAindaMyisam: string[];
     apiCredencial: boolean;
     colunaVrPix: boolean;
+    tabelasCarne?: boolean;
     colunaLimiteCarne: boolean;
   };
 }
@@ -448,12 +449,53 @@ export interface ParcelaCarne {
   valorPago: number | null;
   juros: number | null;
   desconto: number | null;
+  encargos: Encargos | null;
 }
+
+export interface Encargos {
+  diasAtraso: number;
+  juros: number;
+  multa: number;
+  total: number;
+}
+
+export interface ConfigCarne {
+  jurosDia: number;
+  multa: number;
+  carenciaDias: number;
+}
+
+export type FormaRecebimento = 'DINHEIRO' | 'PIX' | 'CARTAO';
 
 export interface ResultadoBaixa {
   controleRecebimento: string;
   dataPagamento: string;
   valorTotal: number;
+  pagamentos: { dinheiro: number; pix: number; cartao: number };
+  troco: number;
+  parcelas: ParcelaCarne[];
+}
+
+export interface SimulacaoBaixa {
+  dataPagamento: string;
+  config: ConfigCarne;
+  parcelas: Array<{ codigo: string; numeroParcela: string; vencimento: string | null; valorParcela: number } & Encargos>;
+  total: number;
+}
+
+export interface ImpressaoCarne {
+  empresa: {
+    nome: string | null;
+    cnpj: string | null;
+    endereco: string | null;
+    bairro: string | null;
+    cidade: string | null;
+    uf: string | null;
+    telefone: string | null;
+  };
+  config: ConfigCarne;
+  venda: { id: number | null; controle: string; data: string | null; valorTotal: number | null; valorParcelado: number | null };
+  cliente: { id: number; nome: string | null; documento: string | null } | null;
   parcelas: ParcelaCarne[];
 }
 
@@ -481,7 +523,8 @@ export interface ResumoCaixa {
   quantidadeVendas: number;
   vendas: { dinheiro: number; pix: number; cartao: number; carne: number; outros: number; total: number };
   descontos: number;
-  recebimentosCarne: { quantidade: number; total: number };
+  recebimentosCarne: { quantidade: number; total: number; dinheiro: number; pix: number; cartao: number };
+  entradas: { dinheiro: number; pix: number; cartao: number; outros: number; total: number };
   totalRecebido: number;
   dinheiroEsperadoNaGaveta: number;
   movimentos: MovimentoCaixa[];

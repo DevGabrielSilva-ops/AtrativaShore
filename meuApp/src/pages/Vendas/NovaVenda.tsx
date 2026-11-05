@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  IoDocumentTextOutline,
   IoAdd,
   IoCheckmarkCircle,
   IoClose,
@@ -11,6 +12,7 @@ import {
   IoTrashOutline,
   IoWarningOutline,
 } from 'react-icons/io5';
+import { ImprimirCarne } from '../../components/ImpressaoCarne';
 import { OpcaoProduto } from '../../components/Produto';
 import { SeletorBusca } from '../../components/SeletorBusca';
 import { Button } from '../../components/ui/Button';
@@ -604,6 +606,7 @@ function TabelaLinhas({
 }
 
 function VendaConcluida({ venda, aoNovaVenda }: { venda: VendaDetalhe; aoNovaVenda: () => void }) {
+  const [carne, setCarne] = useState(false);
   const formas = useMemo(
     () =>
       (
@@ -626,6 +629,11 @@ function VendaConcluida({ venda, aoNovaVenda }: { venda: VendaDetalhe; aoNovaVen
           <Button variante="secundario" icone={<IoPrintOutline />} onClick={imprimir}>
             Imprimir comprovante
           </Button>
+          {venda.parcelasCarne.length ? (
+            <Button variante="secundario" icone={<IoDocumentTextOutline />} onClick={() => setCarne(true)}>
+              Imprimir carnê
+            </Button>
+          ) : null}
           <Button onClick={aoNovaVenda} autoFocus>
             Nova venda
           </Button>
@@ -690,6 +698,7 @@ function VendaConcluida({ venda, aoNovaVenda }: { venda: VendaDetalhe; aoNovaVen
           </>
         ) : null}
       </div>
+      {carne ? <ImprimirCarne controle={venda.controle} aoFechar={() => setCarne(false)} /> : null}
     </Modal>
   );
 }

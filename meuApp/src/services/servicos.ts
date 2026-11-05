@@ -1,5 +1,9 @@
 import type {
   Backup,
+  ConfigCarne,
+  FormaRecebimento,
+  ImpressaoCarne,
+  SimulacaoBaixa,
   Importacao,
   SenhaImportada,
   BaixasCarne,
@@ -242,8 +246,16 @@ export const carneService = {
   listar: (filtro: Pagina & FiltroPeriodo & { idCliente?: number; situacao?: 'ABERTA' | 'PAGA' | 'TODAS'; vencidas?: boolean } = {}) =>
     api.get<Paginado<ParcelaCarne>>('/carnes', { ...filtro }),
   obter: (codigo: string) => api.get<ParcelaCarne>(`/carnes/${codigo}`),
-  baixar: (dados: { parcelas: Array<{ codigo: string; juros?: number; desconto?: number }>; dataPagamento?: string }) =>
-    api.post<ResultadoBaixa>('/carnes/baixa', dados),
+  baixar: (dados: {
+    parcelas: Array<{ codigo: string; juros?: number; desconto?: number }>;
+    dataPagamento?: string;
+    pagamentos?: Array<{ forma: FormaRecebimento; valor: number }>;
+    valorRecebidoDinheiro?: number;
+  }) => api.post<ResultadoBaixa>('/carnes/baixa', dados),
+  simular: (codigos: string[], dataPagamento?: string) => api.post<SimulacaoBaixa>('/carnes/simulacao', { codigos, dataPagamento }),
+  configuracao: () => api.get<ConfigCarne>('/carnes/configuracao'),
+  salvarConfiguracao: (config: ConfigCarne) => api.patch<ConfigCarne>('/carnes/configuracao', config),
+  impressao: (controle: string) => api.get<ImpressaoCarne>(`/carnes/venda/${controle}/impressao`),
 };
 
 export const caixaService = {

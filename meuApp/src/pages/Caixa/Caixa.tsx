@@ -137,6 +137,19 @@ export default function Caixa() {
 }
 
 function ResumoCaixaPainel({ resumo, valorAbertura, compacto = false }: { resumo: ResumoCaixa; valorAbertura: number | null; compacto?: boolean }) {
+  const recebimentos = {
+    ...resumo.recebimentosCarne,
+    dinheiro: resumo.recebimentosCarne.dinheiro ?? resumo.recebimentosCarne.total,
+    pix: resumo.recebimentosCarne.pix ?? 0,
+    cartao: resumo.recebimentosCarne.cartao ?? 0,
+  };
+  const entradas = resumo.entradas ?? {
+    dinheiro: resumo.vendas.dinheiro + recebimentos.dinheiro,
+    pix: resumo.vendas.pix,
+    cartao: resumo.vendas.cartao,
+    outros: resumo.vendas.outros,
+    total: resumo.totalRecebido,
+  };
   return (
     <div className="pilha">
       <div className="indicadores">
@@ -150,12 +163,11 @@ function ResumoCaixaPainel({ resumo, valorAbertura, compacto = false }: { resumo
           <dl className="cupom-linhas sem-borda">
             {(
               [
-                ['Dinheiro', resumo.vendas.dinheiro],
-                ['Pix', resumo.vendas.pix],
-                ['Cartão', resumo.vendas.cartao],
+                ['Dinheiro', entradas.dinheiro],
+                ['Pix', entradas.pix],
+                ['Cartão', entradas.cartao],
                 ['Carnê (vendas a prazo)', resumo.vendas.carne],
-                ['Cheque/ticket', resumo.vendas.outros],
-                [`Recebimentos de carnê (${resumo.recebimentosCarne.quantidade})`, resumo.recebimentosCarne.total],
+                ['Cheque/ticket', entradas.outros],
                 ['Descontos concedidos', resumo.descontos],
               ] as const
             ).map(([nome, valor]) => (
@@ -165,7 +177,22 @@ function ResumoCaixaPainel({ resumo, valorAbertura, compacto = false }: { resumo
               </div>
             ))}
           </dl>
-          <p className="pequeno muted">O sistema não registra a forma de pagamento dos recebimentos de carnê; eles entram como dinheiro.</p>
+          {recebimentos.quantidade > 0 ? (
+            <p className="pequeno muted num">
+              Inclui {recebimentos.quantidade} recebimento{recebimentos.quantidade > 1 ? 's' : ''} de carnê ({formatarMoeda(recebimentos.total)}):{' '}
+              {(
+                [
+                  ['dinheiro', recebimentos.dinheiro],
+                  ['Pix', recebimentos.pix],
+                  ['cartão', recebimentos.cartao],
+                ] as const
+              )
+                .filter(([, valor]) => (valor ?? 0) > 0)
+                .map(([nome, valor]) => `${nome} ${formatarMoeda(valor)}`)
+                .join(' · ')}
+              .
+            </p>
+          ) : null}
         </Painel>
         {!compacto ? (
           <Painel titulo="Movimentações" descricao={`${formatarData(resumo.periodo.inicio)} a ${formatarData(resumo.periodo.fim)}`} semEspaco>

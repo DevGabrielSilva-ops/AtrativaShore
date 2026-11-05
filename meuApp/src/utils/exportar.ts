@@ -28,3 +28,14 @@ export function exportarCsv<T>(nomeArquivo: string, colunas: ColunaExportacao<T>
 export function imprimir(): void {
   window.print();
 }
+
+export function imprimirCarne(): void {
+  document.body.classList.add('imprimindo-carne');
+  const limpar = () => {
+    document.body.classList.remove('imprimindo-carne');
+    window.removeEventListener('afterprint', limpar);
+  };
+  window.addEventListener('afterprint', limpar);
+  window.print();
+  window.setTimeout(limpar, 1000);
+}

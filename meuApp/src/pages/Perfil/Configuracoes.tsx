@@ -140,11 +140,12 @@ function EstadoSistema() {
             { rotulo: 'Conexão', valor: <Badge tom="sucesso">Conectado</Badge> },
             { rotulo: 'Transações (InnoDB)', valor: ok(m.tabelasInnodb, 'Ativas') },
             { rotulo: 'Pagamento Pix', valor: ok(m.colunaVrPix, 'Disponível') },
+            { rotulo: 'Formas e juros no carnê', valor: ok(m.tabelasCarne, 'Disponível') },
             { rotulo: 'Limite do carnê', valor: ok(m.colunaLimiteCarne, 'Ativo') },
           ]}
         />
       )}
-      {m && (!m.tabelasInnodb || !m.colunaVrPix || !m.colunaLimiteCarne) ? (
+      {m && (!m.tabelasInnodb || !m.colunaVrPix || !m.colunaLimiteCarne || m.tabelasCarne === false) ? (
         <p className="pequeno muted">Itens pendentes dependem das migrations do servidor (npm run empresas:migrar).</p>
       ) : null}
     </Painel>
