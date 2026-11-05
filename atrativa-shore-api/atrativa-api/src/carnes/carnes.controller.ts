@@ -22,7 +22,7 @@ export class CarnesController {
 
   @RequerPermissao('carnes.consultar')
   @Get('configuracao')
-  @ApiOperation({ summary: 'Juros ao dia, multa e carência usados no carnê' })
+  @ApiOperation({ summary: 'Juros ao dia e carência usados no carnê' })
   configuracao() {
     return this.carnes.configuracao();
   }
@@ -30,7 +30,7 @@ export class CarnesController {
   @RequerPermissao('empresa.configurar')
   @Auditar('carne.configuracao', 'config_carne')
   @Patch('configuracao')
-  @ApiOperation({ summary: 'Altera juros ao dia, multa e carência do carnê' })
+  @ApiOperation({ summary: 'Altera juros ao dia e carência do carnê' })
   atualizarConfiguracao(@Body() dto: ConfigCarneDto) {
     return this.carnes.atualizarConfiguracao(dto);
   }
@@ -45,7 +45,7 @@ export class CarnesController {
   @RequerPermissao('carnes.receber')
   @Post('simulacao')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Calcula juros e multa das parcelas para uma data de pagamento, sem gravar' })
+  @ApiOperation({ summary: 'Calcula os juros das parcelas para uma data de pagamento, sem gravar' })
   simular(@Body() dto: SimularBaixaDto) {
     return this.carnes.simular(dto);
   }
@@ -61,7 +61,7 @@ export class CarnesController {
   @Auditar('carne.receber', 'parcela_carne')
   @Post('baixa')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Recebe uma ou mais parcelas em dinheiro, Pix e/ou cartão, com juros e multa calculados pelo sistema' })
+  @ApiOperation({ summary: 'Recebe uma ou mais parcelas em dinheiro, Pix e/ou cartão, com juros calculados pelo sistema' })
   baixar(@Body() dto: BaixaCarneDto, @UsuarioAtual() usuario: UsuarioAutenticado) {
     return this.carnes.baixar(dto, usuario);
   }

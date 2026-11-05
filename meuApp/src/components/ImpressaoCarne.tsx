@@ -29,7 +29,7 @@ function Via({ dados, parcela }: { dados: DadosImpressao; parcela: ParcelaCarne 
   const sequencia = venda.id ?? venda.controle;
   const paga = parcela.situacao === 'PAGA';
   const endereco = [empresa.endereco, empresa.bairro, [empresa.cidade, empresa.uf].filter(Boolean).join('-')].filter(Boolean).join(' - ');
-  const comEncargos = config.jurosDia > 0 || config.multa > 0;
+  const comEncargos = config.jurosDia > 0;
   return (
     <article className="carne-via">
       <div className="carne-canhoto">
@@ -71,10 +71,6 @@ function Via({ dados, parcela }: { dados: DadosImpressao; parcela: ParcelaCarne 
             {comEncargos ? (
               <>
                 <p>Juros: {percentual(config.jurosDia)} ao dia de atraso</p>
-                <p>
-                  Multa: {percentual(config.multa)}
-                  {config.carenciaDias ? ` após ${config.carenciaDias} dia${config.carenciaDias > 1 ? 's' : ''} do vencimento` : ' após o vencimento'}
-                </p>
               </>
             ) : (
               <p>Pague até o vencimento.</p>

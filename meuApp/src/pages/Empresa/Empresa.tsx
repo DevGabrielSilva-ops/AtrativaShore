@@ -110,25 +110,22 @@ export default function Empresa() {
 function JurosCarne({ podeEditar }: { podeEditar: boolean }) {
   const { notificar } = useFeedback();
   const config = useRequisicao(() => carneService.configuracao(), []);
-  const [valores, setValores] = useState<{ jurosDia: string; multa: string; carenciaDias: string } | null>(null);
+  const [valores, setValores] = useState<{ jurosDia: string; carenciaDias: string } | null>(null);
   const [falha, setFalha] = useState<string | null>(null);
   const atual = config.dados;
   const campos = valores ?? {
     jurosDia: atual ? numeroParaCampo(atual.jurosDia, 3).replace(/0$/, '') : '',
-    multa: atual ? numeroParaCampo(atual.multa) : '',
     carenciaDias: atual ? String(atual.carenciaDias) : '',
   };
   const mudar = (campo: keyof typeof campos, valor: string) => setValores({ ...campos, [campo]: valor });
   const salvar = useAcao(async () => {
     const jurosDia = lerNumero(campos.jurosDia || '0');
-    const multa = lerNumero(campos.multa || '0');
     const carenciaDias = Number(campos.carenciaDias || '0');
     if (jurosDia === null || jurosDia < 0 || jurosDia > 10) return setFalha('Juros ao dia deve ficar entre 0 e 10%.');
-    if (multa === null || multa < 0 || multa > 100) return setFalha('Multa deve ficar entre 0 e 100%.');
     if (!Number.isInteger(carenciaDias) || carenciaDias < 0 || carenciaDias > 365) return setFalha('Carência deve ser um número de dias entre 0 e 365.');
     setFalha(null);
     try {
-      await carneService.salvarConfiguracao({ jurosDia, multa, carenciaDias });
+      await carneService.salvarConfiguracao({ jurosDia, carenciaDias });
       setValores(null);
       config.recarregar();
       notificar('Juros e multa do carnê atualizados.');
@@ -158,7 +155,6 @@ function JurosCarne({ podeEditar }: { podeEditar: boolean }) {
           ) : null}
           <div className="form-grade">
             <Input rotulo="Juros ao dia (%)" inputMode="decimal" placeholder="0,35" value={campos.jurosDia} onChange={(ev) => mudar('jurosDia', ev.target.value)} />
-            <Input rotulo="Multa (%)" inputMode="decimal" placeholder="1,25" value={campos.multa} onChange={(ev) => mudar('multa', ev.target.value)} />
             <Input rotulo="Carência da multa (dias)" inputMode="numeric" placeholder="5" value={campos.carenciaDias} onChange={(ev) => mudar('carenciaDias', ev.target.value)} />
           </div>
           <div className="form-acoes">
@@ -171,7 +167,6 @@ function JurosCarne({ podeEditar }: { podeEditar: boolean }) {
         <Detalhes
           itens={[
             { rotulo: 'Juros ao dia', valor: `${atual.jurosDia.toLocaleString('pt-BR')}%` },
-            { rotulo: 'Multa', valor: `${atual.multa.toLocaleString('pt-BR')}%` },
             { rotulo: 'Carência da multa', valor: `${atual.carenciaDias} dia(s)` },
           ]}
         />

@@ -383,7 +383,7 @@ function ModalRecebimento({
 
   const jurosAutomatico = (p: ParcelaCarne) => {
     const c = calculado.get(p.codigo!);
-    return c ? Math.round((c.juros + c.multa) * 100) / 100 : 0;
+    return c ? Math.round(c.juros * 100) / 100 : 0;
   };
   const descontoDe = (p: ParcelaCarne) => lerNumero(descontos[p.id] ?? '') ?? 0;
   const valorDe = (p: ParcelaCarne) => Math.round((p.valorParcela + jurosAutomatico(p) - descontoDe(p)) * 100) / 100;
@@ -468,9 +468,9 @@ function ModalRecebimento({
         {simulacao.erro ? <p className="aviso-faixa erro">{simulacao.erro}</p> : null}
         <div className="linha recebimento-topo">
           <Input rotulo="Data do pagamento" type="date" max={hojeIso()} value={dataPagamento} onChange={(e) => setDataPagamento(e.target.value)} className="campo-curto" />
-          {config && (config.jurosDia > 0 || config.multa > 0) ? (
+          {config && (config.jurosDia > 0) ? (
             <p className="muted pequeno">
-              Atraso: juros de {config.jurosDia.toLocaleString('pt-BR')}% ao dia e multa de {config.multa.toLocaleString('pt-BR')}%
+              Atraso: juros de {config.jurosDia.toLocaleString('pt-BR')}% ao dia
               {config.carenciaDias ? ` após ${config.carenciaDias} dias` : ''}, calculados pelo sistema e já somados à parcela.
             </p>
           ) : null}
@@ -498,7 +498,7 @@ function ModalRecebimento({
             },
             {
               chave: 'juros',
-              titulo: 'Juros/multa',
+              titulo: 'Juros',
               alinhar: 'direita',
               render: (p) => {
                 const valor = jurosAutomatico(p);
@@ -507,8 +507,8 @@ function ModalRecebimento({
                     className={`entrada entrada-tabela entrada-calculada${valor > 0 ? ' entrada-com-juros' : ''}`}
                     readOnly
                     tabIndex={-1}
-                    aria-label={`Juros e multa da parcela ${p.numeroParcela} (calculado pelo sistema)`}
-                    title="Calculado pelo sistema conforme a configuração de juros e multa da empresa"
+                    aria-label={`Juros da parcela ${p.numeroParcela} (calculado pelo sistema)`}
+                    title="Calculado pelo sistema conforme a configuração de juros da empresa"
                     value={simulacao.dados ? `${valor > 0 ? '+ ' : ''}${numeroParaCampo(valor)}` : ''}
                     placeholder="Calculando…"
                   />

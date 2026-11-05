@@ -5,7 +5,7 @@ import { FormaRecebimentoCarne } from './dto/carne.dto.js';
 
 type Linha = Record<string, unknown>;
 
-function cenario(config: Linha | null = { juros_dia: '0.350', multa: '1.25', carencia_dias: 5 }) {
+function cenario(config: Linha | null = { juros_dia: '0.350', carencia_dias: 5 }) {
   const parcelas: Linha[] = [
     { id: 1, cod_carne: '0411111111111', controle: '20261001120000', vr_parcela: '100.00', data_vencimento: '2026-10-25', efetuado: 'N', estornado: 0, parcela: 1 },
     { id: 2, cod_carne: '0411111111112', controle: '20261001120000', vr_parcela: '100.00', data_vencimento: '2026-12-25', efetuado: 'N', estornado: 0, parcela: 2 },
@@ -56,7 +56,7 @@ describe('recebimento de carnê', () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it('calcula juros e multa automaticamente e divide o pagamento entre as formas', async () => {
+  it('calcula os juros automaticamente e divide o pagamento entre as formas', async () => {
     const { servico, parcelas, gravados, inseridos } = cenario();
     const resultado = await servico.baixar(
       {
@@ -64,26 +64,26 @@ describe('recebimento de carnê', () => {
         pagamentos: [
           { forma: FormaRecebimentoCarne.DINHEIRO, valor: 50 },
           { forma: FormaRecebimentoCarne.PIX, valor: 120 },
-          { forma: FormaRecebimentoCarne.CARTAO, valor: 34.75 },
+          { forma: FormaRecebimentoCarne.CARTAO, valor: 33.5 },
         ],
         valorRecebidoDinheiro: 60,
       },
       usuario,
     );
-    expect(parcelas[0]).toMatchObject({ efetuado: 'S', vr_juros: 4.75, vr_pago: 104.75 });
+    expect(parcelas[0]).toMatchObject({ efetuado: 'S', vr_juros: 3.5, vr_pago: 103.5 });
     expect(parcelas[1]).toMatchObject({ efetuado: 'S', vr_juros: null, vr_pago: 100 });
-    expect(resultado).toMatchObject({ valorTotal: 204.75, pagamentos: { dinheiro: 50, pix: 120, cartao: 34.75 }, troco: 10 });
-    expect(inseridos[0]).toMatchObject({ valorTotal: 204.75, modoVenda: expect.anything(), terminal: '02' });
+    expect(resultado).toMatchObject({ valorTotal: 203.5, pagamentos: { dinheiro: 50, pix: 120, cartao: 33.5 }, troco: 10 });
+    expect(inseridos[0]).toMatchObject({ valorTotal: 203.5, modoVenda: expect.anything(), terminal: '02' });
     expect(gravados[0].parametros).toEqual([
       resultado.controleRecebimento,
       '2026-11-04',
       '02',
       '1',
       3,
-      204.75,
+      203.5,
       50,
       120,
-      34.75,
+      33.5,
       60,
       10,
       '0411111111111,0411111111112',
@@ -93,7 +93,7 @@ describe('recebimento de carnê', () => {
   it('sempre aplica os juros calculados pelo sistema e aceita desconto', async () => {
     const { servico, parcelas } = cenario();
     await servico.baixar({ parcelas: [{ codigo: '0411111111111', desconto: 5 }] }, usuario);
-    expect(parcelas[0]).toMatchObject({ vr_juros: 4.75, vr_desconto: 5, vr_pago: 99.75 });
+    expect(parcelas[0]).toMatchObject({ vr_juros: 3.5, vr_desconto: 5, vr_pago: 98.5 });
   });
 
   it('parcela em dia não tem juros', async () => {
@@ -137,11 +137,11 @@ describe('recebimento de carnê', () => {
   it('simula os encargos sem gravar nada', async () => {
     const { servico, parcelas } = cenario();
     const simulacao = await servico.simular({ codigos: ['0411111111111', '0411111111112'], dataPagamento: '2026-11-04' });
-    expect(simulacao.parcelas.map((p) => [p.diasAtraso, p.juros, p.multa, p.total])).toEqual([
-      [10, 3.5, 1.25, 104.75],
-      [0, 0, 0, 100],
+    expect(simulacao.parcelas.map((p) => [p.diasAtraso, p.juros, p.total])).toEqual([
+      [10, 3.5, 103.5],
+      [0, 0, 100],
     ]);
-    expect(simulacao.total).toBe(204.75);
+    expect(simulacao.total).toBe(203.5);
     expect(parcelas.every((p) => p.efetuado === 'N')).toBe(true);
   });
 });

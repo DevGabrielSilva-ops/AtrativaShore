@@ -455,13 +455,11 @@ export interface ParcelaCarne {
 export interface Encargos {
   diasAtraso: number;
   juros: number;
-  multa: number;
   total: number;
 }
 
 export interface ConfigCarne {
   jurosDia: number;
-  multa: number;
   carenciaDias: number;
 }
 

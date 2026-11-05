@@ -414,8 +414,8 @@ describe.skipIf(!habilitado)('Plataforma SaaS (e2e, MySQL real)', () => {
   });
 
   it('vende no carnê, gera os dados de impressão e recebe a parcela em Pix somando no caixa', { timeout: 120_000 }, async () => {
-    await lojaA.patch('/carnes/configuracao').send({ jurosDia: 0.35, multa: 1.25, carenciaDias: 5 }).expect(200);
-    expect((await lojaA.get('/carnes/configuracao').expect(200)).body.data).toEqual({ jurosDia: 0.35, multa: 1.25, carenciaDias: 5 });
+    await lojaA.patch('/carnes/configuracao').send({ jurosDia: 0.35, carenciaDias: 5 }).expect(200);
+    expect((await lojaA.get('/carnes/configuracao').expect(200)).body.data).toEqual({ jurosDia: 0.35, carenciaDias: 5 });
     const cliente = await lojaA.post('/clientes').send({ nome: `CLIENTE CARNE ${marca}`, limiteCarne: 1000 }).expect(201);
     const produtos = await lojaA.get(`/produtos?busca=${marca}`).expect(200);
     const idProduto = produtos.body.data[0].id;

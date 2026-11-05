@@ -124,12 +124,6 @@ export class ConfigCarneDto {
   @Max(10)
   jurosDia: number;
 
-  @ApiProperty({ example: 1.25, description: 'Multa por atraso (%), cobrada uma vez após a carência' })
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
-  @Max(100)
-  multa: number;
-
   @ApiProperty({ example: 5, description: 'Dias após o vencimento sem multa' })
   @IsInt()
   @Min(0)

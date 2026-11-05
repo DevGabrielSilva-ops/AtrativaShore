@@ -109,18 +109,18 @@ export class CarnesService {
 
   async configuracao(): Promise<ConfigCarne> {
     const [linha] = (await this.fonte
-      .query('SELECT juros_dia, multa, carencia_dias FROM api_config_carne WHERE id = 1')
+      .query('SELECT juros_dia, carencia_dias FROM api_config_carne WHERE id = 1')
       .catch(() => [])) as Array<Record<string, unknown>>;
     if (!linha) return { ...CONFIG_CARNE_PADRAO };
-    return { jurosDia: numero(linha.juros_dia), multa: numero(linha.multa), carenciaDias: Number(linha.carencia_dias ?? 0) };
+    return { jurosDia: numero(linha.juros_dia), carenciaDias: Number(linha.carencia_dias ?? 0) };
   }
 
   async atualizarConfiguracao(dto: ConfigCarneDto): Promise<ConfigCarne> {
     await this.banco.garantirTabelasCarne();
     await this.fonte.query(
-      `INSERT INTO api_config_carne (id, juros_dia, multa, carencia_dias) VALUES (1, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE juros_dia = VALUES(juros_dia), multa = VALUES(multa), carencia_dias = VALUES(carencia_dias)`,
-      [dto.jurosDia, dto.multa, dto.carenciaDias],
+      `INSERT INTO api_config_carne (id, juros_dia, multa, carencia_dias) VALUES (1, ?, 0, ?)
+       ON DUPLICATE KEY UPDATE juros_dia = VALUES(juros_dia), multa = 0, carencia_dias = VALUES(carencia_dias)`,
+      [dto.jurosDia, dto.carenciaDias],
     );
     return this.configuracao();
   }
@@ -276,7 +276,7 @@ export class CarnesService {
         if (linha.efetuado === SIM) throw new ConflictException(`A parcela ${parcela.codigo} já está paga`);
 
         const automatico = calcularEncargos(numero(linha.vr_parcela), linha.data_vencimento, dataPagamento, config);
-        const juros = paraCentavos(automatico.juros + automatico.multa);
+        const juros = paraCentavos(automatico.juros);
         const desconto = paraCentavos(parcela.desconto ?? 0);
         const valorPago = paraCentavos(linha.vr_parcela) + juros - desconto;
         if (valorPago <= 0) {
