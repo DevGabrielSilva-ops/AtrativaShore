@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { IoAlertCircleOutline, IoArchiveOutline, IoCheckmarkCircle, IoCloudDownloadOutline } from 'react-icons/io5';
+import { IoAlertCircleOutline, IoArchiveOutline, IoCheckmarkCircle, IoCloudDownloadOutline, IoRefreshOutline } from 'react-icons/io5';
 import { useFeedback } from '../contexts/FeedbackContext';
 import type { GeracaoBackup } from '../hooks/useGeracaoBackup';
 import { useRequisicao } from '../hooks/useRequisicao';
@@ -93,14 +93,18 @@ export function HistoricoBackups({
   servico,
   descricaoVazio,
   acoes,
+  aoRestaurar,
+  versao = 0,
 }: {
   servico: ServicoBackup;
   descricaoVazio: string;
   acoes?: (recarregar: () => void) => ReactNode;
+  aoRestaurar?: (backup: Backup) => void;
+  versao?: number;
 }) {
   const { notificar } = useFeedback();
   const [pagina, setPagina] = useState(1);
-  const lista = useRequisicao(() => servico.listar({ page: pagina, limit: 10 }), [pagina, servico]);
+  const lista = useRequisicao(() => servico.listar({ page: pagina, limit: 10 }), [pagina, servico, versao]);
   const [baixando, setBaixando] = useState<number | null>(null);
   const emAndamento = lista.dados?.data.some((b) => b.status === 'PROCESSANDO') ?? false;
   const { recarregar } = lista;
@@ -169,20 +173,27 @@ export function HistoricoBackups({
           },
           {
             chave: 'acoes',
-            titulo: 'Download',
+            titulo: aoRestaurar ? 'Ações' : 'Download',
             alinhar: 'direita',
             render: (b) =>
               b.disponivel ? (
-                <Button
-                  variante="secundario"
-                  tamanho="sm"
-                  icone={<IoCloudDownloadOutline />}
-                  carregando={baixando === b.id}
-                  disabled={baixando !== null && baixando !== b.id}
-                  onClick={() => void baixar(b)}
-                >
-                  Baixar
-                </Button>
+                <span className="linha linha-fim">
+                  {aoRestaurar ? (
+                    <Button variante="fantasma" tamanho="sm" icone={<IoRefreshOutline />} onClick={() => aoRestaurar(b)}>
+                      Restaurar
+                    </Button>
+                  ) : null}
+                  <Button
+                    variante="secundario"
+                    tamanho="sm"
+                    icone={<IoCloudDownloadOutline />}
+                    carregando={baixando === b.id}
+                    disabled={baixando !== null && baixando !== b.id}
+                    onClick={() => void baixar(b)}
+                  >
+                    Baixar
+                  </Button>
+                </span>
               ) : (
                 <span className="muted pequeno">—</span>
               ),

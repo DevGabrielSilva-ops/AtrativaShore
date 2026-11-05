@@ -171,6 +171,54 @@ export async function baixarArquivo(caminho: string, nomePadrao: string, semReno
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+export function enviarArquivo<T>(
+  caminho: string,
+  campo: string,
+  arquivo: File,
+  aoProgresso?: (percentual: number) => void,
+  semRenovar = false,
+): Promise<T> {
+  return new Promise<T>((resolver, rejeitar) => {
+    const requisicao = new XMLHttpRequest();
+    requisicao.open('POST', montarUrl(caminho));
+    requisicao.withCredentials = true;
+    requisicao.setRequestHeader('Accept', 'application/json');
+    if (tokenAtual) requisicao.setRequestHeader('Authorization', `Bearer ${tokenAtual}`);
+    requisicao.upload.onprogress = (evento) => {
+      if (evento.lengthComputable) aoProgresso?.(Math.round((evento.loaded / evento.total) * 100));
+    };
+    requisicao.onerror = () => rejeitar(new ApiError(0, mensagensDoCorpo(null, 0)));
+    requisicao.onload = () => {
+      let corpo: unknown = null;
+      try {
+        corpo = requisicao.responseText ? JSON.parse(requisicao.responseText) : null;
+      } catch {
+        corpo = null;
+      }
+      if (requisicao.status === 401 && tokenAtual && !semRenovar) {
+        void renovarUmaVez().then((novo) => {
+          if (novo) enviarArquivo<T>(caminho, campo, arquivo, aoProgresso, true).then(resolver, rejeitar);
+          else {
+            aoExpirarSessao?.();
+            rejeitar(new ApiError(401, mensagensDoCorpo(corpo, 401)));
+          }
+        });
+        return;
+      }
+      if (requisicao.status < 200 || requisicao.status >= 300) {
+        const mensagens =
+          requisicao.status === 413 ? ['O arquivo é maior que o limite permitido pelo servidor.'] : mensagensDoCorpo(corpo, requisicao.status);
+        rejeitar(new ApiError(requisicao.status, mensagens));
+        return;
+      }
+      resolver((corpo && typeof corpo === 'object' && 'data' in corpo ? (corpo as { data: T }).data : corpo) as T);
+    };
+    const formulario = new FormData();
+    formulario.append(campo, arquivo, arquivo.name);
+    requisicao.send(formulario);
+  });
+}
+
 export function mensagemErro(erro: unknown): string {
   if (erro instanceof ApiError) return erro.mensagens.join(' • ');
   if (erro instanceof Error) return erro.message;

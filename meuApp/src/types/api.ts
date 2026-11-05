@@ -47,6 +47,7 @@ export type Permissao =
   | 'funcionarios.gerenciar'
   | 'empresa.configurar'
   | 'backup.gerar'
+  | 'backup.restaurar'
   | 'auditoria.consultar';
 
 export interface UsuarioAutenticado {
@@ -641,4 +642,61 @@ export interface Backup {
   downloads: number;
   disponivel: boolean;
   usuario: { id: number; nome: string } | null;
+}
+
+export type StatusImportacao = 'ANALISANDO' | 'PRONTO' | 'PROCESSANDO' | 'CONCLUIDO' | 'FALHOU' | 'CANCELADO' | 'EXPIRADO';
+
+export interface TabelaImportacao {
+  tabela: string;
+  registros: number;
+  acao: 'SUBSTITUIR' | 'IGNORAR';
+  motivo: string | null;
+  colunasIgnoradas: string[];
+  colunasSemValor: string[];
+  transacional: boolean;
+}
+
+export interface AnaliseImportacao {
+  origem: 'BACKUP_ATRATIVA' | 'DUMP_SQL';
+  codificacao: 'utf8' | 'latin1';
+  metadados: { formato: string; versaoFormato: number; geradoEm: string | null; empresa: { id: number; nome: string } | null } | null;
+  registros: number;
+  tabelas: TabelaImportacao[];
+  usuariosParaCriar: Array<{ id: number; login: string | null; papel: Papel }>;
+  naoTransacionais: string[];
+  avisos: string[];
+}
+
+export interface ResultadoImportacao {
+  registros: number;
+  tabelas: Array<{ tabela: string; registros: number }>;
+  usuariosCriados: Array<{ id: number; nome: string; login: string; papel: Papel; status: string; idLogin: number }>;
+  loginsReligados: number;
+}
+
+export interface Importacao {
+  id: number;
+  status: StatusImportacao;
+  origem: 'BACKUP_ATRATIVA' | 'DUMP_SQL' | null;
+  nomeArquivo: string;
+  tamanho: number | null;
+  progresso: number;
+  etapa: string | null;
+  erro: string | null;
+  analise: AnaliseImportacao | null;
+  resultado: ResultadoImportacao | null;
+  idBackupOrigem: number | null;
+  idBackupSeguranca: number | null;
+  criadoEm: string;
+  confirmadoEm: string | null;
+  concluidoEm: string | null;
+  senhasDisponiveis: boolean;
+  usuario: { id: number; nome: string } | null;
+}
+
+export interface SenhaImportada {
+  id: number;
+  nome: string;
+  login: string;
+  senhaTemporaria: string;
 }

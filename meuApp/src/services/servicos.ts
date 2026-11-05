@@ -1,5 +1,7 @@
 import type {
   Backup,
+  Importacao,
+  SenhaImportada,
   BaixasCarne,
   CaixaComResumo,
   Caixa,
@@ -56,7 +58,7 @@ import type {
   TipoCodigo,
   ValidacaoCodigo,
 } from '../types/api';
-import { api, baixarArquivo } from './api';
+import { api, baixarArquivo, enviarArquivo } from './api';
 
 export interface Pagina {
   page?: number;
@@ -286,6 +288,19 @@ function servicoDeBackup(base: string) {
 
 export type ServicoBackup = ReturnType<typeof servicoDeBackup>;
 
-export const backupService = servicoDeBackup('/backups');
+export const backupService = {
+  ...servicoDeBackup('/backups'),
+  restaurar: (id: number) => api.post<Importacao>(`/backups/${id}/restaurar`),
+};
+
+export const importacaoService = {
+  enviar: (arquivo: File, aoProgresso?: (percentual: number) => void) =>
+    enviarArquivo<Importacao>('/importacoes', 'arquivo', arquivo, aoProgresso),
+  listar: (filtro: Pagina = {}) => api.get<Paginado<Importacao>>('/importacoes', { ...filtro }),
+  obter: (id: number) => api.get<Importacao>(`/importacoes/${id}`),
+  confirmar: (id: number) => api.post<Importacao>(`/importacoes/${id}/confirmar`, { confirmacao: 'SUBSTITUIR' }),
+  cancelar: (id: number) => api.post<Importacao>(`/importacoes/${id}/cancelar`),
+  senhas: (id: number) => api.get<SenhaImportada[]>(`/importacoes/${id}/senhas`),
+};
 
 export const backupPlataformaService = servicoDeBackup('/plataforma/backups');
