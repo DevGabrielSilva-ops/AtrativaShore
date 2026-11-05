@@ -137,6 +137,40 @@ export const api = {
   delete: (caminho: string) => requisitar<void>(caminho, { metodo: 'DELETE' }),
 };
 
+export async function baixarArquivo(caminho: string, nomePadrao: string, semRenovar = false): Promise<void> {
+  const cabecalhos: Record<string, string> = { Accept: 'application/zip, application/json' };
+  if (tokenAtual) cabecalhos.Authorization = `Bearer ${tokenAtual}`;
+  let resposta: Response;
+  try {
+    resposta = await fetch(montarUrl(caminho), { headers: cabecalhos, credentials: 'include', cache: 'no-store' });
+  } catch {
+    throw new ApiError(0, mensagensDoCorpo(null, 0));
+  }
+  if (!resposta.ok) {
+    if (resposta.status === 401 && tokenAtual && !semRenovar) {
+      if (await renovarUmaVez()) return baixarArquivo(caminho, nomePadrao, true);
+      aoExpirarSessao?.();
+    }
+    const corpo: unknown = await resposta.json().catch(() => null);
+    throw new ApiError(resposta.status, mensagensDoCorpo(corpo, resposta.status));
+  }
+  const disposicao = resposta.headers.get('Content-Disposition') ?? '';
+  const codificado = /filename\*=UTF-8''([^;]+)/i.exec(disposicao)?.[1];
+  const simples = /filename="([^"]+)"/i.exec(disposicao)?.[1];
+  const nome = (codificado ? decodeURIComponent(codificado) : simples) || nomePadrao;
+  const arquivo = await resposta.blob();
+  const url = URL.createObjectURL(arquivo);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = nome;
+  link.rel = 'noopener';
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
 export function mensagemErro(erro: unknown): string {
   if (erro instanceof ApiError) return erro.mensagens.join(' • ');
   if (erro instanceof Error) return erro.message;

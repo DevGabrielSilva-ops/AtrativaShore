@@ -86,3 +86,16 @@ export function formatarDataHora(valor: string | null | undefined): string {
   const data = new Date(/[zZ]|[+-]\d{2}:\d{2}$/.test(valor) ? valor : valor.replace(' ', 'T'));
   return Number.isNaN(data.getTime()) ? valor : dataHora.format(data);
 }
+
+export function formatarTamanho(bytes: number | null | undefined): string {
+  if (bytes == null) return '—';
+  if (bytes < 1024) return `${bytes} B`;
+  const unidades = ['KB', 'MB', 'GB'];
+  let valor = bytes / 1024;
+  let i = 0;
+  while (valor >= 1024 && i < unidades.length - 1) {
+    valor /= 1024;
+    i += 1;
+  }
+  return `${valor.toLocaleString('pt-BR', { maximumFractionDigits: valor < 10 ? 1 : 0 })} ${unidades[i]}`;
+}

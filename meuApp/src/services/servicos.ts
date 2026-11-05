@@ -1,4 +1,5 @@
 import type {
+  Backup,
   BaixasCarne,
   CaixaComResumo,
   Caixa,
@@ -55,7 +56,7 @@ import type {
   TipoCodigo,
   ValidacaoCodigo,
 } from '../types/api';
-import { api } from './api';
+import { api, baixarArquivo } from './api';
 
 export interface Pagina {
   page?: number;
@@ -273,3 +274,18 @@ export const relatorioService = {
   movimentacoes: (filtro: FiltroMovimentacoes = {}) =>
     api.get<Paginado<Movimentacao>>('/relatorios/movimentacoes', { ...filtro }),
 };
+
+function servicoDeBackup(base: string) {
+  return {
+    gerar: () => api.post<Backup>(base),
+    listar: (filtro: Pagina = {}) => api.get<Paginado<Backup>>(base, { ...filtro }),
+    obter: (id: number) => api.get<Backup>(`${base}/${id}`),
+    baixar: (backup: Pick<Backup, 'id' | 'nomeArquivo'>) => baixarArquivo(`${base}/${backup.id}/download`, backup.nomeArquivo),
+  };
+}
+
+export type ServicoBackup = ReturnType<typeof servicoDeBackup>;
+
+export const backupService = servicoDeBackup('/backups');
+
+export const backupPlataformaService = servicoDeBackup('/plataforma/backups');

@@ -814,3 +814,68 @@ textarea.entrada {
 .segmentada-legenda .pequeno {
   text-align: right;
 }
+
+.progresso {
+  height: 8px;
+  border-radius: var(--raio-pill);
+  background: var(--cor-marca-suave);
+  overflow: hidden;
+}
+.progresso-barra {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--cor-marca);
+  transition: width 0.4s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .progresso-barra {
+    transition: none;
+  }
+}
+.secao-backup {
+  display: flex;
+  gap: var(--esp-3);
+  padding: var(--esp-4);
+  border: 1px solid var(--cor-marca-borda);
+  border-radius: var(--raio-md);
+  background: var(--cor-superficie-2);
+}
+.secao-backup-icone {
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--cor-marca);
+}
+.secao-backup-corpo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-2);
+  flex: 1;
+  min-width: 0;
+}
+.secao-backup-titulo {
+  margin: 0;
+  font-weight: 600;
+}
+.secao-backup-corpo p {
+  margin: 0;
+}
+.historico-backups-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--esp-2);
+  padding: var(--esp-3) var(--esp-4) 0;
+}
+.pilha-curta {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.quebra-texto {
+  overflow-wrap: anywhere;
+}
+.secao-ancora {
+  margin-top: var(--esp-6);
+  scroll-margin-top: var(--esp-6);
+}

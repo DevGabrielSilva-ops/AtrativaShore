@@ -46,6 +46,7 @@ export type Permissao =
   | 'funcionarios.consultar'
   | 'funcionarios.gerenciar'
   | 'empresa.configurar'
+  | 'backup.gerar'
   | 'auditoria.consultar';
 
 export interface UsuarioAutenticado {
@@ -619,4 +620,25 @@ export interface Saude {
   status: string;
   banco: string;
   plataformaMigrada: boolean;
+}
+
+export type StatusBackup = 'PROCESSANDO' | 'CONCLUIDO' | 'FALHOU' | 'EXPIRADO';
+
+export interface Backup {
+  id: number;
+  tipo: 'EMPRESA' | 'PLATAFORMA';
+  status: StatusBackup;
+  progresso: number;
+  etapa: string | null;
+  nomeArquivo: string;
+  tamanho: number | null;
+  sha256: string | null;
+  registros: number | null;
+  erro: string | null;
+  criadoEm: string;
+  concluidoEm: string | null;
+  expiraEm: string | null;
+  downloads: number;
+  disponivel: boolean;
+  usuario: { id: number; nome: string } | null;
 }

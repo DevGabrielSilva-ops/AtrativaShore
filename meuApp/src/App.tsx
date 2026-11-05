@@ -33,6 +33,7 @@ const Codigos = lazy(() => import('./pages/Plataforma/Codigos'));
 const Planos = lazy(() => import('./pages/Plataforma/Planos'));
 const Administradores = lazy(() => import('./pages/Plataforma/Administradores'));
 const AuditoriaPlataforma = lazy(() => import('./pages/Plataforma/AuditoriaPlataforma'));
+const BackupsPlataforma = lazy(() => import('./pages/Plataforma/BackupsPlataforma'));
 const NaoEncontrada = lazy(() => import('./pages/NaoEncontrada'));
 
 function Carregando() {
@@ -131,6 +132,7 @@ export default function App() {
                 <Route path="planos" element={<Planos />} />
                 <Route path="administradores" element={<Administradores />} />
                 <Route path="auditoria" element={<AuditoriaPlataforma />} />
+                <Route path="backups" element={<BackupsPlataforma />} />
                 <Route path="perfil" element={<Perfil />} />
                 <Route path="senha" element={<SenhaPlataforma />} />
                 <Route path="*" element={<NaoEncontrada />} />

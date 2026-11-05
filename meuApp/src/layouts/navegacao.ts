@@ -1,5 +1,6 @@
 import type { IconType } from 'react-icons';
 import {
+  IoArchiveOutline,
   IoBarChartOutline,
   IoBusinessOutline,
   IoCartOutline,
@@ -75,6 +76,7 @@ export const MENU_PLATAFORMA: GrupoMenu[] = [
   grupo('Controle', [
     { caminho: '/plataforma/administradores', titulo: 'Administradores', icone: IoShieldCheckmarkOutline },
     { caminho: '/plataforma/auditoria', titulo: 'Auditoria', icone: IoTimeOutline },
+    { caminho: '/plataforma/backups', titulo: 'Backups', icone: IoArchiveOutline },
     { caminho: '/plataforma/perfil', titulo: 'Meu perfil', icone: IoPeopleCircleOutline },
   ]),
 ];

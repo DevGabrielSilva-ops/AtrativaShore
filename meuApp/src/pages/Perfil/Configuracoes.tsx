@@ -1,11 +1,16 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { IoCheckmarkCircle, IoWarningOutline } from 'react-icons/io5';
+import { IoArchiveOutline, IoCheckmarkCircle, IoWarningOutline } from 'react-icons/io5';
+import { HistoricoBackups } from '../../components/Backup';
+import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Estados';
 import { Detalhes, PageHeader, Painel } from '../../components/ui/Layout';
 import { Skeleton } from '../../components/ui/Spinner';
 import { useAuth } from '../../contexts/AuthContext';
+import { useFeedback } from '../../contexts/FeedbackContext';
 import { useRequisicao } from '../../hooks/useRequisicao';
-import { saudeService } from '../../services/servicos';
+import { mensagemErro } from '../../services/api';
+import { backupService, saudeService } from '../../services/servicos';
 import { AlterarSenha } from './AlterarSenha';
 
 export default function Configuracoes() {
@@ -29,7 +34,48 @@ export default function Configuracoes() {
           ) : null}
         </div>
       </div>
+      {pode('backup.gerar') ? <CopiasDeSeguranca /> : null}
     </>
+  );
+}
+
+function CopiasDeSeguranca() {
+  const { notificar } = useFeedback();
+  const [gerando, setGerando] = useState(false);
+  const secao = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (window.location.hash === '#copias-de-seguranca') secao.current?.scrollIntoView({ block: 'start' });
+  }, []);
+  const gerar = async (recarregar: () => void) => {
+    setGerando(true);
+    try {
+      await backupService.gerar();
+      notificar('Gerando o backup. Ele aparece no histórico assim que ficar pronto.', 'info');
+    } catch (erro) {
+      notificar(mensagemErro(erro), 'erro');
+    } finally {
+      setGerando(false);
+      recarregar();
+    }
+  };
+  return (
+    <div id="copias-de-seguranca" ref={secao} className="secao-ancora">
+      <Painel
+        titulo="Cópias de segurança"
+        descricao="Backups com os dados desta empresa, sem senhas. Cada arquivo fica disponível para download por tempo limitado."
+        semEspaco
+      >
+        <HistoricoBackups
+          servico={backupService}
+          descricaoVazio="Gere um backup aqui ou depois de fechar o caixa."
+          acoes={(recarregar) => (
+            <Button icone={<IoArchiveOutline />} carregando={gerando} onClick={() => void gerar(recarregar)}>
+              Gerar backup agora
+            </Button>
+          )}
+        />
+      </Painel>
+    </div>
   );
 }
 
