@@ -14,6 +14,7 @@ import {
 } from 'react-icons/io5';
 import { ImprimirCarne } from '../../components/ImpressaoCarne';
 import { OpcaoProduto } from '../../components/Produto';
+import { ReciboVenda } from '../../components/ReciboVenda';
 import { SeletorBusca } from '../../components/SeletorBusca';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Estados';
@@ -25,7 +26,6 @@ import { useAcao, useRequisicao } from '../../hooks/useRequisicao';
 import { ApiError, mensagemErro } from '../../services/api';
 import { caixaService, clienteService, produtoService, vendaService } from '../../services/servicos';
 import type { Cliente, FormaPagamento, Produto, RegistrarVendaEntrada, VendaDetalhe } from '../../types/api';
-import { imprimir } from '../../utils/exportar';
 import {
   formatarData,
   formatarDocumento,
@@ -607,6 +607,7 @@ function TabelaLinhas({
 
 function VendaConcluida({ venda, aoNovaVenda }: { venda: VendaDetalhe; aoNovaVenda: () => void }) {
   const [carne, setCarne] = useState(false);
+  const [recibo, setRecibo] = useState(false);
   const formas = useMemo(
     () =>
       (
@@ -626,8 +627,8 @@ function VendaConcluida({ venda, aoNovaVenda }: { venda: VendaDetalhe; aoNovaVen
       aoFechar={aoNovaVenda}
       rodape={
         <>
-          <Button variante="secundario" icone={<IoPrintOutline />} onClick={imprimir}>
-            Imprimir comprovante
+          <Button variante="secundario" icone={<IoPrintOutline />} onClick={() => setRecibo(true)}>
+            Imprimir recibo
           </Button>
           {venda.parcelasCarne.length ? (
             <Button variante="secundario" icone={<IoDocumentTextOutline />} onClick={() => setCarne(true)}>
@@ -699,6 +700,7 @@ function VendaConcluida({ venda, aoNovaVenda }: { venda: VendaDetalhe; aoNovaVen
         ) : null}
       </div>
       {carne ? <ImprimirCarne controle={venda.controle} aoFechar={() => setCarne(false)} /> : null}
+      {recibo ? <ReciboVenda venda={venda} aoFechar={() => setRecibo(false)} /> : null}
     </Modal>
   );
 }

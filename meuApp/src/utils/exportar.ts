@@ -29,13 +29,21 @@ export function imprimir(): void {
   window.print();
 }
 
-export function imprimirCarne(): void {
-  document.body.classList.add('imprimindo-carne');
+function imprimirComClasse(classe: string): void {
+  document.body.classList.add(classe);
   const limpar = () => {
-    document.body.classList.remove('imprimindo-carne');
+    document.body.classList.remove(classe);
     window.removeEventListener('afterprint', limpar);
   };
   window.addEventListener('afterprint', limpar);
   window.print();
   window.setTimeout(limpar, 1000);
+}
+
+export function imprimirCarne(): void {
+  imprimirComClasse('imprimindo-carne');
+}
+
+export function imprimirRecibo(): void {
+  imprimirComClasse('imprimindo-recibo');
 }
