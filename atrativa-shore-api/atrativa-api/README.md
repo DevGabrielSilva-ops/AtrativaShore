@@ -275,7 +275,7 @@ Todos com prefixo `/api/v1`. Detalhes de cada campo no Swagger.
 | **Carnês** |||
 | GET | `/carnes?idCliente=&situacao=ABERTA\|PAGA\|TODAS&vencidas=` | Parcelas |
 | GET | `/carnes/:codigo` | Parcela pelo código de 13 dígitos |
-| POST | `/carnes/baixa` | Recebe uma ou mais parcelas: `pagamentos` em DINHEIRO/PIX/CARTAO (combináveis, soma = total), `valorRecebidoDinheiro` para o troco, juros e multa automáticos (ou `juros` digitado) |
+| POST | `/carnes/baixa` | Recebe uma ou mais parcelas: `pagamentos` em DINHEIRO/PIX/CARTAO (combináveis, soma = total), `valorRecebidoDinheiro` para o troco, juros e multa sempre calculados pelo sistema (`desconto` opcional) |
 | POST | `/carnes/simulacao` | Juros e multa das parcelas para uma data, sem gravar |
 | GET, PATCH | `/carnes/configuracao` | Juros ao dia, multa e carência (PATCH: `empresa.configurar`) |
 | GET | `/carnes/venda/:controle/impressao` | Empresa, cliente, venda e parcelas para imprimir ou reimprimir o carnê |
@@ -432,7 +432,7 @@ POST /api/v1/carnes/baixa
 
 - Formas: dinheiro, Pix e cartão, combináveis; a soma precisa ser igual ao total a receber (400 se não for). Sem `pagamentos`, tudo é registrado em dinheiro (compatível com clientes antigos da API).
 - Cada recebimento continua gravando `mv_financeiro` (parcela paga) e `mv_vendas_movimento` (modo recebimento, como o desktop) e passa a gravar `api_recebimentos_carne` com o valor de cada forma e o troco.
-- Juros e multa (`api_config_carne`): multa % cobrada uma vez quando o atraso passa da carência; juros % **ao dia** contados desde o vencimento, juros simples, arredondados em centavos. Ficam em `vr_juros` da parcela. Se `juros` for informado na baixa, ele substitui o cálculo.
+- Juros e multa (`api_config_carne`): multa % cobrada uma vez quando o atraso passa da carência; juros % **ao dia** contados desde o vencimento, juros simples, arredondados em centavos. Ficam em `vr_juros` da parcela. Não podem ser digitados na baixa: o sistema sempre usa o cálculo (o campo aparece bloqueado na tela; só o desconto é editável).
 - Fechamento de caixa: `entradas` soma vendas e recebimentos de carnê em cada forma; `dinheiroEsperadoNaGaveta` = troco inicial + dinheiro de vendas + dinheiro de recebimentos. `recebimentosCarne` traz o detalhe por forma. Recebimentos sem registro em `api_recebimentos_carne` (feitos pelo desktop ou antes desta versão) contam como dinheiro.
 - Impressão: o carnê sai no layout canhoto + recibo, 2 parcelas por folha A4, com o código da parcela em EAN-13 (Code 128 se o código não for um EAN válido).
 

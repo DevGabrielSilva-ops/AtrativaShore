@@ -373,7 +373,7 @@ function ModalRecebimento({
   aoConcluir: (resultado: ResultadoBaixa) => void;
 }) {
   const [dataPagamento, setDataPagamento] = useState(hojeIso());
-  const [ajustes, setAjustes] = useState<Record<number, { juros: string; desconto: string }>>({});
+  const [descontos, setDescontos] = useState<Record<number, string>>({});
   const [pagos, setPagos] = useState<Record<FormaRecebimento, string> | null>(null);
   const [recebido, setRecebido] = useState('');
   const [falha, setFalha] = useState<string | null>(null);
@@ -385,8 +385,8 @@ function ModalRecebimento({
     const c = calculado.get(p.codigo!);
     return c ? Math.round((c.juros + c.multa) * 100) / 100 : 0;
   };
-  const jurosDe = (p: ParcelaCarne) => lerNumero(ajustes[p.id]?.juros ?? '') ?? jurosAutomatico(p);
-  const valorDe = (p: ParcelaCarne) => p.valorParcela + jurosDe(p) - (lerNumero(ajustes[p.id]?.desconto ?? '') ?? 0);
+  const descontoDe = (p: ParcelaCarne) => lerNumero(descontos[p.id] ?? '') ?? 0;
+  const valorDe = (p: ParcelaCarne) => Math.round((p.valorParcela + jurosAutomatico(p) - descontoDe(p)) * 100) / 100;
   const total = somarReais(parcelas.map(valorDe));
   const efetivos: Record<FormaRecebimento, string> = pagos ?? { DINHEIRO: numeroParaCampo(total), PIX: '', CARTAO: '' };
   const valorForma = (forma: FormaRecebimento) => lerNumero(efetivos[forma]) ?? 0;
@@ -412,8 +412,7 @@ function ModalRecebimento({
           dataPagamento,
           parcelas: parcelas.map((p) => ({
             codigo: p.codigo!,
-            juros: lerNumero(ajustes[p.id]?.juros ?? '') ?? undefined,
-            desconto: lerNumero(ajustes[p.id]?.desconto ?? '') ?? undefined,
+            desconto: descontoDe(p) > 0 ? descontoDe(p) : undefined,
           })),
           pagamentos: FORMAS_RECEBIMENTO.filter((f) => valorForma(f.id) > 0).map((f) => ({ forma: f.id, valor: valorForma(f.id) })),
           valorRecebidoDinheiro: valorRecebido !== null && dinheiro > 0 ? valorRecebido : undefined,
@@ -436,9 +435,7 @@ function ModalRecebimento({
     void receber.executar();
   };
 
-  const mudar = (id: number, campo: 'juros' | 'desconto', valor: string) => {
-    setAjustes((atual) => ({ ...atual, [id]: { ...(atual[id] ?? { juros: '', desconto: '' }), [campo]: valor } }));
-  };
+  const mudarDesconto = (id: number, valor: string) => setDescontos((atual) => ({ ...atual, [id]: valor }));
 
   const config = simulacao.dados?.config;
   return (
@@ -474,7 +471,7 @@ function ModalRecebimento({
           {config && (config.jurosDia > 0 || config.multa > 0) ? (
             <p className="muted pequeno">
               Atraso: juros de {config.jurosDia.toLocaleString('pt-BR')}% ao dia e multa de {config.multa.toLocaleString('pt-BR')}%
-              {config.carenciaDias ? ` após ${config.carenciaDias} dias` : ''}, calculados automaticamente.
+              {config.carenciaDias ? ` após ${config.carenciaDias} dias` : ''}, calculados pelo sistema e já somados à parcela.
             </p>
           ) : null}
         </div>
@@ -502,22 +499,27 @@ function ModalRecebimento({
             {
               chave: 'juros',
               titulo: 'Juros/multa',
-              render: (p) => (
-                <input
-                  className="entrada entrada-tabela"
-                  inputMode="decimal"
-                  placeholder={numeroParaCampo(jurosAutomatico(p))}
-                  aria-label={`Juros e multa da parcela ${p.numeroParcela}`}
-                  value={ajustes[p.id]?.juros ?? ''}
-                  onChange={(e) => mudar(p.id, 'juros', e.target.value)}
-                />
-              ),
+              alinhar: 'direita',
+              render: (p) => {
+                const valor = jurosAutomatico(p);
+                return (
+                  <input
+                    className={`entrada entrada-tabela entrada-calculada${valor > 0 ? ' entrada-com-juros' : ''}`}
+                    readOnly
+                    tabIndex={-1}
+                    aria-label={`Juros e multa da parcela ${p.numeroParcela} (calculado pelo sistema)`}
+                    title="Calculado pelo sistema conforme a configuração de juros e multa da empresa"
+                    value={simulacao.dados ? `${valor > 0 ? '+ ' : ''}${numeroParaCampo(valor)}` : ''}
+                    placeholder="Calculando…"
+                  />
+                );
+              },
             },
             {
               chave: 'desconto',
               titulo: 'Desconto',
               render: (p) => (
-                <input className="entrada entrada-tabela" inputMode="decimal" placeholder="0,00" aria-label={`Desconto da parcela ${p.numeroParcela}`} value={ajustes[p.id]?.desconto ?? ''} onChange={(e) => mudar(p.id, 'desconto', e.target.value)} />
+                <input className="entrada entrada-tabela" inputMode="decimal" placeholder="0,00" aria-label={`Desconto da parcela ${p.numeroParcela}`} value={descontos[p.id] ?? ''} onChange={(e) => mudarDesconto(p.id, e.target.value)} />
               ),
             },
             { chave: 'valor', titulo: 'A receber', alinhar: 'direita', render: (p) => formatarMoeda(valorDe(p)) },

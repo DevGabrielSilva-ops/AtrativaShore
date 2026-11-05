@@ -130,6 +130,6 @@ src/
 ## Carnê: impressão e recebimento
 
 - **Imprimir carnê**: na venda concluída com carnê (Nova venda) e em **Reimprimir carnê** em cada parcela da tela de Carnês. Usa `GET /carnes/venda/:controle/impressao`; layout do modelo da loja (canhoto + recibo, 2 por folha A4) em `components/ImpressaoCarne.tsx`, código de barras em SVG (`components/CodigoBarras.tsx`, EAN-13 ou Code 128, sem dependências). Parcelas já pagas saem com "PAGA EM" e o valor pago.
-- **Receber parcelas**: juros e multa vêm de `POST /carnes/simulacao` (podem ser alterados), formas Dinheiro/Pix/Cartão com "Tudo em…" e "+ falta", valor entregue e troco; o recibo mostra as formas.
+- **Receber parcelas**: juros e multa vêm de `POST /carnes/simulacao`, ficam bloqueados para edição (0,00 quando não há atraso) e já somam no valor da parcela; só o desconto é editável, formas Dinheiro/Pix/Cartão com "Tudo em…" e "+ falta", valor entregue e troco; o recibo mostra as formas.
 - **Caixa**: "Por forma de pagamento" soma vendas e recebimentos em cada forma e mostra o detalhe dos recebimentos de carnê.
 - **Empresa**: painel "Juros e multa do carnê" (`GET/PATCH /carnes/configuracao`).

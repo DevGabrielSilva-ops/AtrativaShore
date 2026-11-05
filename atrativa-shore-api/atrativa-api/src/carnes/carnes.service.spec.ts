@@ -90,10 +90,16 @@ describe('recebimento de carnê', () => {
     ]);
   });
 
-  it('aceita juros digitados à mão no lugar do cálculo automático', async () => {
+  it('sempre aplica os juros calculados pelo sistema e aceita desconto', async () => {
     const { servico, parcelas } = cenario();
-    await servico.baixar({ parcelas: [{ codigo: '0411111111111', juros: 0, desconto: 5 }] }, usuario);
-    expect(parcelas[0]).toMatchObject({ vr_juros: null, vr_desconto: 5, vr_pago: 95 });
+    await servico.baixar({ parcelas: [{ codigo: '0411111111111', desconto: 5 }] }, usuario);
+    expect(parcelas[0]).toMatchObject({ vr_juros: 4.75, vr_desconto: 5, vr_pago: 99.75 });
+  });
+
+  it('parcela em dia não tem juros', async () => {
+    const { servico, parcelas } = cenario();
+    await servico.baixar({ parcelas: [{ codigo: '0411111111112' }] }, usuario);
+    expect(parcelas[1]).toMatchObject({ vr_juros: null, vr_pago: 100 });
   });
 
   it('sem formas informadas registra tudo em dinheiro', async () => {

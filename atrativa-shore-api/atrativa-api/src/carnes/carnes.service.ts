@@ -276,7 +276,7 @@ export class CarnesService {
         if (linha.efetuado === SIM) throw new ConflictException(`A parcela ${parcela.codigo} já está paga`);
 
         const automatico = calcularEncargos(numero(linha.vr_parcela), linha.data_vencimento, dataPagamento, config);
-        const juros = paraCentavos(parcela.juros ?? automatico.juros + automatico.multa);
+        const juros = paraCentavos(automatico.juros + automatico.multa);
         const desconto = paraCentavos(parcela.desconto ?? 0);
         const valorPago = paraCentavos(linha.vr_parcela) + juros - desconto;
         if (valorPago <= 0) {

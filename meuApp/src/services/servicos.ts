@@ -247,7 +247,7 @@ export const carneService = {
     api.get<Paginado<ParcelaCarne>>('/carnes', { ...filtro }),
   obter: (codigo: string) => api.get<ParcelaCarne>(`/carnes/${codigo}`),
   baixar: (dados: {
-    parcelas: Array<{ codigo: string; juros?: number; desconto?: number }>;
+    parcelas: Array<{ codigo: string; desconto?: number }>;
     dataPagamento?: string;
     pagamentos?: Array<{ forma: FormaRecebimento; valor: number }>;
     valorRecebidoDinheiro?: number;

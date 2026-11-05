@@ -52,15 +52,6 @@ export class ParcelaBaixaDto {
   @Matches(/^\d{13}$/, { message: 'codigo deve ter 13 dígitos' })
   codigo: string;
 
-  @ApiPropertyOptional({
-    example: 2.5,
-    description: 'Juros e multa (R$). Se omitido, usa o cálculo automático pela configuração de juros e multa do carnê.',
-  })
-  @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0)
-  juros?: number;
-
   @ApiPropertyOptional({ example: 0, description: 'Desconto (R$)' })
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })

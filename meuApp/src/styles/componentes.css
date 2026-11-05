@@ -1563,3 +1563,18 @@ textarea.entrada {
     min-height: 210mm;
   }
 }
+
+.entrada.entrada-calculada,
+.entrada.entrada-calculada:focus {
+  background: var(--cor-superficie-2);
+  border-color: var(--cor-linha);
+  color: var(--cor-texto-2);
+  text-align: right;
+  cursor: default;
+  box-shadow: none;
+}
+.entrada.entrada-com-juros,
+.entrada.entrada-com-juros:focus {
+  color: var(--cor-perigo);
+  font-weight: 600;
+}

@@ -61,7 +61,7 @@ export class CarnesController {
   @Auditar('carne.receber', 'parcela_carne')
   @Post('baixa')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Recebe uma ou mais parcelas em dinheiro, Pix e/ou cartão, com juros e multa automáticos' })
+  @ApiOperation({ summary: 'Recebe uma ou mais parcelas em dinheiro, Pix e/ou cartão, com juros e multa calculados pelo sistema' })
   baixar(@Body() dto: BaixaCarneDto, @UsuarioAtual() usuario: UsuarioAutenticado) {
     return this.carnes.baixar(dto, usuario);
   }
