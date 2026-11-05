@@ -111,3 +111,11 @@ src/
 - PDV: mostra o disponível ao escolher o cliente e bloqueia a revisão se o valor no carnê passar dele;
   a API recusa com 409 de qualquer forma.
 - Requer a migration `AdicionarLimiteCarne` (coluna `cad_clientes.limite_carne`).
+
+## Backup após o fechamento de caixa
+
+- O modal de fechamento mostra "Caixa fechado com sucesso!" com o resumo de sempre. Para quem tem `backup.gerar`, aparece a cópia de segurança com **Gerar backup** e **Fazer isso depois**; o fechamento já está gravado antes disso.
+- Durante a geração a barra mostra `progresso` (consulta `GET /backups/:id` a cada segundo). O usuário pode fechar o modal e continuar usando o sistema; o backup termina no servidor e fica no histórico.
+- **Baixar backup** chama `GET /backups/:id/download` com o token, recebe o ZIP como blob e o navegador salva com o nome enviado pelo servidor (`backupService.baixar`, `baixarArquivo` em `services/api.ts`). Erros (expirado, sem permissão) aparecem na própria tela.
+- Histórico: Configurações › Cópias de segurança (atalho no cabeçalho do Caixa), com arquivo, data, responsável, tamanho, status e download enquanto disponível.
+- Superadministrador: Plataforma › Backups, para o backup completo de todas as empresas.

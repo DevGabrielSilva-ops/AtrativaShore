@@ -143,6 +143,9 @@ Todas estão em `.env.example`. As obrigatórias são `DB_HOST`, `DB_USERNAME`, 
 | `CARNE_MAX_PARCELAS` | 12 | Máximo de parcelas no carnê |
 | `CARNE_LIMITE_PERCENTUAL_RENDA` | 50 | Limite do carnê = este % da faixa salarial do cliente |
 | `CARNE_LIMITE_PADRAO` | 300 | Limite do carnê (R$) para clientes sem faixa salarial |
+| `BACKUP_DIR` | armazenamento/backups | Pasta dos ZIPs de backup (fora do Git e de qualquer pasta pública) |
+| `BACKUP_RETENCAO_HORAS` | 24 | Tempo (1 a 720 h) que o arquivo fica disponível para download antes de ser apagado |
+| `MYSQLDUMP_PATH` | — | Caminho do `mysqldump` para o backup global (sem ele, a API usa o exportador interno) |
 | `E2E_DB_DATABASE`, `E2E_LOGIN`, `E2E_SENHA` | — | Testes e2e (seção 10) |
 
 ---
@@ -287,6 +290,13 @@ Todos com prefixo `/api/v1`. Detalhes de cada campo no Swagger.
 | GET | `/relatorios/baixas-carne` | Parcelas recebidas |
 | GET | `/relatorios/mercadorias` | Entradas por nota e investimento |
 | GET | `/relatorios/movimentacoes` | Movimentações de estoque |
+| **Backups** (permissão `backup.gerar`) |||
+| POST | `/backups` | Inicia o backup da empresa do usuário (202; devolve o mesmo se já houver um em andamento) |
+| GET | `/backups`, `/backups/:id` | Histórico e progresso (`status`, `progresso`, `etapa`, `disponivel`) |
+| GET | `/backups/:id/download` | Baixa o ZIP (`Content-Disposition: attachment`) |
+| **Backup global** (somente superadministrador) |||
+| POST, GET | `/plataforma/backups` | Inicia / lista backups completos da plataforma |
+| GET | `/plataforma/backups/:id`, `/plataforma/backups/:id/download` | Progresso / download |
 | GET | `/health` | Saúde da API e do banco (público) |
 
 ---
@@ -413,6 +423,22 @@ Lógico (`estornado = 1`, como no desktop). Devolve os itens ao estoque, retira 
 - Entrada de nota gera conta a pagar em `mv_financeiro` (origem E, plano "Compra de mercadoria"), como o desktop.
 - **Estoque baixo:** saldo ≤ `min_estoque`; como nenhum produto tem mínimo cadastrado hoje, usa `ESTOQUE_BAIXO_LIMITE` ou `?limite=`.
 
+### Backup dos dados
+
+- **Não altera o fechamento de caixa.** O backup é pedido depois do `POST /caixa/fechar`, em outra requisição; uma falha no backup não reverte nem bloqueia o fechamento.
+- Roda em segundo plano na própria API. O registro fica em `plataforma_backups` (`PROCESSANDO` → `CONCLUIDO` / `FALHOU` → `EXPIRADO`) e o frontend acompanha `progresso`. Só um backup por empresa (e um global) é gerado por vez. Se a API reiniciar no meio, o registro vira `FALHOU`.
+- A empresa vem sempre do usuário autenticado; buscar o id de outra empresa devolve 404. Funcionários só acessam se o cargo tiver `backup.gerar` (o administrador da empresa tem; gerente, vendedor e estoquista não, por padrão).
+- **ZIP da empresa** (`atrativa-shore-backup-<empresa>-<data>.zip`):
+  - `metadados.json`: formato `atrativa-shore-backup-empresa`, `versaoFormato` 1, data, responsável, lista de arquivos com quantidade de registros e o que ficou de fora;
+  - `empresa.json`: cadastro da empresa no banco central, plano e `cad_empresa` (configurações comerciais);
+  - `dados/empresa/<tabela>.json`: todas as tabelas do banco da empresa, uma por arquivo, com ids originais e ordenadas pela chave primária, lidas numa única transação (snapshot consistente);
+  - `dados/plataforma/`: usuários, cargos, ativações e auditoria da empresa;
+  - **fora do arquivo:** `api_credencial`, `cad_login.senha`, `cad_empresa.chave_liberacao`, `senha_hash` e `versao_token` dos usuários, refresh tokens e códigos de ativação.
+- **Backup global:** um script SQL por banco (central + cada empresa provisionada) com `CREATE TABLE` e `INSERT`, ou um único script do `mysqldump --single-transaction` quando `MYSQLDUMP_PATH` está definido. Contém hashes de senha e as senhas do sistema anterior: guarde em local protegido. Os scripts não têm `DROP TABLE`.
+- Os arquivos ficam em `BACKUP_DIR/empresa-<id>/` ou `BACKUP_DIR/plataforma/` com nome aleatório e permissão só do usuário da API; o download confere o status e a validade, e a limpeza apaga os vencidos a cada 30 minutos e na inicialização.
+- Auditoria: `backup.gerado`, `backup.falhou` e `backup.baixado`.
+- Requer `npm run plataforma:migrar` para criar `plataforma_backups` (migration `CriarBackups1762400000002`, só cria a tabela).
+
 ### Exclusões
 
 O banco não tem chaves estrangeiras, então a API protege o histórico: cliente com vendas/carnês, produto com vendas/movimentação/saldo e fornecedor com produtos/entradas **não podem ser excluídos (409)**.
@@ -430,9 +456,9 @@ npm test                 # unitários (não precisam de banco)
 npm run test:e2e         # inicialização da API com banco simulado + fluxo SaaS real (este, só com E2E_SAAS=true)
 ```
 
-- **Unitários:** cálculo e registro de venda, limite do carnê, operações de saldo, relatórios, códigos e datas; guard de acesso (plataforma × empresa, empresa suspensa, permissões, senha temporária), permissões por papel, códigos de ativação, remoção de segredos da auditoria e **isolamento do contexto por empresa com requisições concorrentes**.
+- **Unitários:** ZIP do backup (integridade e CRC), exportação da empresa sem senhas e filtrada pela empresa, geração/falha/expiração/isolamento do serviço de backups e permissões; cálculo e registro de venda, limite do carnê, operações de saldo, relatórios, códigos e datas; guard de acesso (plataforma × empresa, empresa suspensa, permissões, senha temporária), permissões por papel, códigos de ativação, remoção de segredos da auditoria e **isolamento do contexto por empresa com requisições concorrentes**.
 - **Inicialização (`test/inicializacao.e2e-spec.ts`):** sobe o `AppModule` real com banco simulado e confere 401/400, envelope de resposta e todas as rotas no Swagger.
-- **Fluxo SaaS (`test/api.e2e-spec.ts`):** com MySQL real, cria bancos temporários `e2e_*`, ativa duas empresas por código, confere que produtos, clientes e vendas não cruzam, que empresa não acessa `/plataforma`, permissões do vendedor, senha temporária, suspensão/reativação, rotação do refresh token e auditoria; no fim apaga os bancos `e2e_*` que criou. Para rodar, use um MySQL de teste e defina `E2E_SAAS=true` (e `E2E_DB_*` se for outro servidor).
+- **Fluxo SaaS (`test/api.e2e-spec.ts`):** com MySQL real, cria bancos temporários `e2e_*`, ativa duas empresas por código, confere que produtos, clientes e vendas não cruzam, que empresa não acessa `/plataforma`, permissões do vendedor, senha temporária, suspensão/reativação, rotação do refresh token, auditoria, fechamento de caixa seguido de backup (download, integridade, dados só da empresa, 404 para outra empresa, 403 para gerente e superadministrador) e backup global; no fim apaga os bancos `e2e_*` que criou. Para rodar, use um MySQL de teste e defina `E2E_SAAS=true` (e `E2E_DB_*` se for outro servidor).
 
 ---
 
