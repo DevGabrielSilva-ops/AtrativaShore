@@ -47,3 +47,7 @@ export function imprimirCarne(): void {
 export function imprimirRecibo(): void {
   imprimirComClasse('imprimindo-recibo');
 }
+
+export function imprimirEtiquetas(): void {
+  imprimirComClasse('imprimindo-etiquetas');
+}

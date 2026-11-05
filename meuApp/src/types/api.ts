@@ -741,3 +741,55 @@ export interface SenhaImportada {
   login: string;
   senhaTemporaria: string;
 }
+
+export type ConteudoCampoEtiqueta =
+  | 'produto'
+  | 'codigoBarras'
+  | 'precoVarejo'
+  | 'precoAtacado'
+  | 'informacoes'
+  | 'empresa'
+  | 'fornecedor'
+  | 'tipo';
+
+export interface CampoEtiqueta {
+  id: number;
+  nome: string;
+  conteudo: ConteudoCampoEtiqueta;
+  ordem: number;
+  usar: boolean;
+  topo: number;
+  esquerda: number;
+  largura: number;
+  altura: number;
+  fonte: number;
+}
+
+export interface ModeloEtiqueta {
+  id: number;
+  nome: string;
+  pagina: { largura: number; altura: number };
+  margens: { topo: number; baixo: number; esquerda: number; direita: number };
+  colunas: number;
+  linhas: number;
+  porFolha: number;
+  espacoColunas: number;
+  larguraEtiqueta: number;
+  alturaEtiqueta: number;
+  campos: CampoEtiqueta[];
+}
+
+export interface ModelosEtiqueta {
+  empresa: string | null;
+  origem: 'empresa' | 'padrao';
+  modelos: ModeloEtiqueta[];
+}
+
+export interface ProdutoEtiqueta {
+  id: number;
+  nome: string | null;
+  codigoBarras: string | null;
+  informacoes: string | null;
+  tipo: string | null;
+  fornecedor: string | null;
+}

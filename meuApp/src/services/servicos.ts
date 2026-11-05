@@ -1,4 +1,6 @@
 import type {
+  ModelosEtiqueta,
+  ProdutoEtiqueta,
   Backup,
   ConfigCarne,
   FormaRecebimento,
@@ -193,6 +195,12 @@ export interface FiltroProdutos extends Pagina {
   idFornecedor?: number;
   somenteDisponiveis?: boolean;
 }
+
+export const etiquetaService = {
+  modelos: () => api.get<ModelosEtiqueta>('/etiquetas/modelos'),
+  produtos: (ids: number[]) =>
+    api.get<{ produtos: ProdutoEtiqueta[]; naoEncontrados: number[] }>('/etiquetas/produtos', { ids: ids.join(',') }),
+};
 
 export const produtoService = {
   listar: (filtro: FiltroProdutos = {}) => api.get<Paginado<Produto>>('/produtos', { ...filtro }),

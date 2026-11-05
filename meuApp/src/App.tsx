@@ -15,6 +15,7 @@ const Clientes = lazy(() => import('./pages/Clientes/Clientes'));
 const Fornecedores = lazy(() => import('./pages/Fornecedores/Fornecedores'));
 const Produtos = lazy(() => import('./pages/Produtos/Produtos'));
 const Estoque = lazy(() => import('./pages/Estoque/Estoque'));
+const MaletaEtiquetas = lazy(() => import('./pages/Etiquetas/MaletaEtiquetas'));
 const NovaVenda = lazy(() => import('./pages/Vendas/NovaVenda'));
 const HistoricoVendas = lazy(() => import('./pages/Vendas/HistoricoVendas'));
 const Caixa = lazy(() => import('./pages/Caixa/Caixa'));
@@ -152,6 +153,7 @@ export default function App() {
                 <Route path="funcionarios" element={so(['funcionarios.consultar'], <Funcionarios />)} />
                 <Route path="produtos" element={so(['produtos.consultar'], <Produtos />)} />
                 <Route path="estoque" element={so(['estoque.consultar'], <Estoque />)} />
+                <Route path="etiquetas" element={so(['produtos.consultar'], <MaletaEtiquetas />)} />
                 <Route path="vendas" element={so(['vendas.consultar'], <HistoricoVendas />)} />
                 <Route path="vendas/nova" element={so(['vendas.registrar'], <NovaVenda />)} />
                 <Route path="caixa" element={so(['caixa.operar'], <Caixa />)} />

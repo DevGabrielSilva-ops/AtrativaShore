@@ -1578,3 +1578,91 @@ textarea.entrada {
   color: var(--cor-perigo);
   font-weight: 600;
 }
+
+.etiquetas-previa {
+  padding: var(--esp-3);
+  background: var(--cor-superficie-2);
+  border: 1px solid var(--cor-linha);
+  border-radius: var(--raio-md);
+  overflow: hidden;
+}
+.etiquetas-previa-escala {
+  transform-origin: top left;
+  width: max-content;
+}
+.etiquetas-folha {
+  position: relative;
+  background: #fff;
+  color: #000;
+  overflow: hidden;
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.etiquetas-folha-previa {
+  box-shadow: 0 1px 3px rgba(32, 26, 38, 0.18);
+}
+.etiqueta {
+  position: absolute;
+  overflow: hidden;
+}
+.etiquetas-folha-previa .etiqueta {
+  outline: 1px dashed var(--cor-marca-borda);
+  outline-offset: -1px;
+}
+.etiquetas-folha-previa .etiqueta-usada {
+  background: repeating-linear-gradient(135deg, var(--cor-linha) 0 2px, transparent 2px 8px);
+}
+.etiqueta-campo {
+  position: absolute;
+  overflow: hidden;
+  line-height: 1.1;
+}
+.etiqueta-nome {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-weight: 700;
+  text-transform: uppercase;
+  word-break: break-word;
+}
+.etiqueta-texto {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.etiqueta-codigo {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.etiqueta-codigo .codigo-barras {
+  width: 100%;
+  height: auto;
+  flex: 1 1 0;
+  min-height: 0;
+}
+.etiqueta-codigo span {
+  flex: none;
+  font-size: 0.8em;
+  line-height: 1;
+  text-align: center;
+  letter-spacing: 0.08em;
+}
+.etiquetas-impressao {
+  display: none;
+}
+@media print {
+  body.imprimindo-etiquetas > :not(.etiquetas-impressao) {
+    display: none !important;
+  }
+  body.imprimindo-etiquetas .etiquetas-impressao {
+    display: block;
+  }
+  body.imprimindo-etiquetas .etiquetas-folha {
+    page: etiquetas;
+    break-after: page;
+  }
+  body.imprimindo-etiquetas .etiquetas-folha:last-child {
+    break-after: auto;
+  }
+}
