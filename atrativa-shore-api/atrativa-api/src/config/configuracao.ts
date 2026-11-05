@@ -29,6 +29,11 @@ export interface Configuracao {
     conexoesPorEmpresa: number;
     ativacaoValidadeDias: number;
   };
+  backup: {
+    diretorio: string;
+    retencaoHoras: number;
+    mysqldump: string | null;
+  };
   bcryptRodadas: number;
   fusoHorario: string;
   empresaId: number;
@@ -166,6 +171,11 @@ export function carregarConfiguracao(env: Ambiente = process.env): Configuracao 
       prefixoBancoEmpresa: nomeBanco(texto(env, 'DB_EMPRESA_PREFIXO', 'atrativa_emp_'), 'DB_EMPRESA_PREFIXO'),
       conexoesPorEmpresa: inteiro(env, 'DB_CONEXOES_POR_EMPRESA', 5, 1, 50),
       ativacaoValidadeDias: inteiro(env, 'ATIVACAO_VALIDADE_DIAS', 7, 1, 365),
+    },
+    backup: {
+      diretorio: texto(env, 'BACKUP_DIR', 'armazenamento/backups'),
+      retencaoHoras: inteiro(env, 'BACKUP_RETENCAO_HORAS', 24, 1, 720),
+      mysqldump: env.MYSQLDUMP_PATH?.trim() || null,
     },
     bcryptRodadas: inteiro(env, 'BCRYPT_ROUNDS', 10, 8, 15),
     fusoHorario,

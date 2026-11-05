@@ -1,4 +1,5 @@
 import { Ativacao } from './ativacao.entity.js';
+import { Backup } from './backup.entity.js';
 import { RegistroAuditoria } from './auditoria.entity.js';
 import { Cargo } from './cargo.entity.js';
 import { CodigoAtivacao } from './codigo-ativacao.entity.js';
@@ -16,6 +17,8 @@ export const ENTIDADES_PLATAFORMA = [
   Ativacao,
   RefreshToken,
   RegistroAuditoria,
+  Backup,
 ];
 
-export { Ativacao, Cargo, CodigoAtivacao, Plano, PlataformaEmpresa, PlataformaUsuario, RefreshToken, RegistroAuditoria };
+export { Ativacao, Backup, Cargo, CodigoAtivacao, Plano, PlataformaEmpresa, PlataformaUsuario, RefreshToken, RegistroAuditoria };
+export type { StatusBackup, TipoBackup } from './backup.entity.js';

@@ -5,6 +5,7 @@ import { AtivacaoModule } from './ativacao/ativacao.module.js';
 import { AuditoriaInterceptor } from './auditoria/auditoria.interceptor.js';
 import { AuditoriaModule } from './auditoria/auditoria.module.js';
 import { AuthModule } from './auth/auth.module.js';
+import { BackupsModule } from './backup/backups.module.js';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard.js';
 import { CaixaModule } from './caixa/caixa.module.js';
 import { CarnesModule } from './carnes/carnes.module.js';
@@ -42,6 +43,7 @@ import { VendasModule } from './vendas/vendas.module.js';
     CarnesModule,
     CaixaModule,
     RelatoriosModule,
+    BackupsModule,
   ],
   controllers: [SaudeController],
   providers: [

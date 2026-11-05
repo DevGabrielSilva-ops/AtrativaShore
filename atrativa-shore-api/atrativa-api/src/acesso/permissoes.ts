@@ -25,6 +25,7 @@ export const PERMISSOES = {
   'funcionarios.gerenciar': { grupo: 'Funcionários', descricao: 'Cadastrar funcionários, cargos e permissões' },
   'empresa.configurar': { grupo: 'Empresa', descricao: 'Alterar os dados da empresa' },
   'auditoria.consultar': { grupo: 'Empresa', descricao: 'Consultar o histórico de atividades' },
+  'backup.gerar': { grupo: 'Empresa', descricao: 'Gerar e baixar backups dos dados da empresa' },
 } as const;
 
 export type Permissao = keyof typeof PERMISSOES;
@@ -32,7 +33,7 @@ export type Permissao = keyof typeof PERMISSOES;
 export const TODAS_PERMISSOES = Object.keys(PERMISSOES) as Permissao[];
 
 const GERENTE: Permissao[] = TODAS_PERMISSOES.filter(
-  (p) => p !== 'funcionarios.gerenciar' && p !== 'empresa.configurar',
+  (p) => p !== 'funcionarios.gerenciar' && p !== 'empresa.configurar' && p !== 'backup.gerar',
 );
 
 export const PERMISSOES_POR_PAPEL: Record<PapelEmpresa, Permissao[]> = {
