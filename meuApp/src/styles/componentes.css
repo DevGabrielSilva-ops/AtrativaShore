@@ -1666,3 +1666,11 @@ textarea.entrada {
     break-after: auto;
   }
 }
+.seletor-aviso {
+  margin: var(--esp-2) 0 0;
+  padding: var(--esp-2) var(--esp-3);
+  border-radius: var(--raio-md);
+  background: var(--cor-perigo-suave);
+  color: var(--cor-perigo);
+  font-size: var(--texto-sm);
+}

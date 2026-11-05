@@ -192,7 +192,15 @@ export default function NovaVenda() {
   };
 
   const buscarProdutos = async (termo: string) => (await produtoService.listar({ busca: termo, limit: 8 })).data;
-  const buscarCodigo = (codigo: string) => produtoService.porCodigo(codigo).catch(() => null);
+  const buscarCodigo = async (codigo: string): Promise<Produto | null> => {
+    const naoEncontrado = (falha: unknown) => {
+      if (falha instanceof ApiError && falha.status === 404) return null;
+      throw falha;
+    };
+    const porCodigo = await produtoService.porCodigo(codigo).catch(naoEncontrado);
+    if (porCodigo || codigo.length > 6) return porCodigo;
+    return produtoService.obter(Number(codigo)).catch(naoEncontrado);
+  };
 
   return (
     <div className="pdv">
