@@ -412,4 +412,54 @@ describe.skipIf(!habilitado)('Plataforma SaaS (e2e, MySQL real)', () => {
     const acoes = auditoria.body.data.map((r: { acao: string }) => r.acao);
     expect(acoes).toEqual(expect.arrayContaining(['backup.gerado', 'backup.baixado']));
   });
+
+  it('vende no carnê, gera os dados de impressão e recebe a parcela em Pix somando no caixa', { timeout: 120_000 }, async () => {
+    await lojaA.patch('/carnes/configuracao').send({ jurosDia: 0.35, multa: 1.25, carenciaDias: 5 }).expect(200);
+    expect((await lojaA.get('/carnes/configuracao').expect(200)).body.data).toEqual({ jurosDia: 0.35, multa: 1.25, carenciaDias: 5 });
+    const cliente = await lojaA.post('/clientes').send({ nome: `CLIENTE CARNE ${marca}`, limiteCarne: 1000 }).expect(201);
+    const produtos = await lojaA.get(`/produtos?busca=${marca}`).expect(200);
+    const idProduto = produtos.body.data[0].id;
+    await lojaA.post('/estoque/entradas').send({ itens: [{ idProduto, quantidade: 2, valorCompra: 20 }] }).expect(201);
+    const venda = await lojaA
+      .post('/vendas')
+      .send({ idCliente: cliente.body.data.id, itens: [{ idProduto, quantidade: 1 }], pagamentos: [{ forma: 'CARNE', valor: 55 }], parcelasCarne: 2 })
+      .expect(201);
+    const controle: string = venda.body.data.controle;
+
+    const impressao = await lojaA.get(`/carnes/venda/${controle}/impressao`).expect(200);
+    expect(impressao.body.data.parcelas).toHaveLength(2);
+    expect(impressao.body.data.cliente.nome).toBe(`CLIENTE CARNE ${marca}`);
+    expect(impressao.body.data.config.jurosDia).toBe(0.35);
+    await lojaB.get(`/carnes/venda/${controle}/impressao`).expect(404);
+
+    await lojaA.post('/caixa/abrir').send({ valorAbertura: 10 }).expect(201);
+    const antes = (await lojaA.get('/caixa/atual').expect(200)).body.data.resumo;
+    const parcela = impressao.body.data.parcelas[0];
+    await lojaA
+      .post('/carnes/baixa')
+      .send({ parcelas: [{ codigo: parcela.codigo }], pagamentos: [{ forma: 'PIX', valor: parcela.valorParcela - 1 }] })
+      .expect(400);
+    const baixa = await lojaA
+      .post('/carnes/baixa')
+      .send({
+        parcelas: [{ codigo: parcela.codigo }],
+        pagamentos: [
+          { forma: 'PIX', valor: parcela.valorParcela - 5 },
+          { forma: 'DINHEIRO', valor: 5 },
+        ],
+        valorRecebidoDinheiro: 10,
+      })
+      .expect(200);
+    expect(baixa.body.data).toMatchObject({ troco: 5, pagamentos: { pix: parcela.valorParcela - 5, dinheiro: 5, cartao: 0 } });
+
+    const depois = (await lojaA.get('/caixa/atual').expect(200)).body.data.resumo;
+    expect(depois.entradas.pix).toBeCloseTo(antes.entradas.pix + parcela.valorParcela - 5, 2);
+    expect(depois.dinheiroEsperadoNaGaveta).toBeCloseTo(antes.dinheiroEsperadoNaGaveta + 5, 2);
+    expect(depois.recebimentosCarne.pix).toBeCloseTo(antes.recebimentosCarne.pix + parcela.valorParcela - 5, 2);
+    const fechado = await lojaA.post('/caixa/fechar').send({}).expect(200);
+    expect(fechado.body.data.resumo.entradas.pix).toBeCloseTo(depois.entradas.pix, 2);
+
+    const reimpressao = await lojaA.get(`/carnes/venda/${controle}/impressao`).expect(200);
+    expect(reimpressao.body.data.parcelas[0]).toMatchObject({ situacao: 'PAGA', valorPago: parcela.valorParcela });
+  });
 });
