@@ -161,6 +161,7 @@ Todas estão em `.env.example`. As obrigatórias são `DB_HOST`, `DB_USERNAME`, 
 | `CriarApiCredencial` | Cria `api_credencial` (hash bcrypt da senha da API) sem alterar `cad_login` | Remove a tabela |
 | `AdicionarVrPix` | Cria `mv_vendas.vr_pix` | Remove a coluna (e os valores de Pix) |
 | `AdicionarLimiteCarne` | Cria `cad_clientes.limite_carne` (NULL para todos = limite calculado) | Remove a coluna (e os limites manuais) |
+| `CriarTabelasCarne` | Cria `api_recebimentos_carne` (forma de pagamento de cada recebimento) e `api_config_carne` (juros ao dia, multa, carência); não altera tabelas do sistema anterior | Remove as duas tabelas |
 
 Antes de rodar no banco da loja:
 
@@ -274,7 +275,10 @@ Todos com prefixo `/api/v1`. Detalhes de cada campo no Swagger.
 | **Carnês** |||
 | GET | `/carnes?idCliente=&situacao=ABERTA\|PAGA\|TODAS&vencidas=` | Parcelas |
 | GET | `/carnes/:codigo` | Parcela pelo código de 13 dígitos |
-| POST | `/carnes/baixa` | Recebe uma ou mais parcelas (juros/desconto opcionais) |
+| POST | `/carnes/baixa` | Recebe uma ou mais parcelas: `pagamentos` em DINHEIRO/PIX/CARTAO (combináveis, soma = total), `valorRecebidoDinheiro` para o troco, juros e multa automáticos (ou `juros` digitado) |
+| POST | `/carnes/simulacao` | Juros e multa das parcelas para uma data, sem gravar |
+| GET, PATCH | `/carnes/configuracao` | Juros ao dia, multa e carência (PATCH: `empresa.configurar`) |
+| GET | `/carnes/venda/:controle/impressao` | Empresa, cliente, venda e parcelas para imprimir ou reimprimir o carnê |
 | **Caixa** |||
 | GET | `/caixa/atual` | Caixa aberto do terminal + resumo (ou `null`) |
 | POST | `/caixa/abrir`, `/caixa/fechar` | Abre / fecha |
@@ -390,7 +394,11 @@ POST /api/v1/estoque/entradas
 
 ```http
 POST /api/v1/carnes/baixa
-{ "parcelas": [{ "codigo": "2108612020015", "juros": 2.5 }] }
+{
+  "parcelas": [{ "codigo": "2108612020015" }, { "codigo": "2108612020022", "desconto": 1 }],
+  "pagamentos": [{ "forma": "PIX", "valor": 80 }, { "forma": "DINHEIRO", "valor": 21.75 }],
+  "valorRecebidoDinheiro": 30
+}
 ```
 
 ---
@@ -419,6 +427,14 @@ POST /api/v1/carnes/baixa
 - O valor em aberto é recalculado de `mv_financeiro` a cada venda (com `FOR UPDATE`), então **cada parcela paga libera o limite na hora**, e venda estornada também.
 - Não há liberação acima do limite: para vender mais, receba parcelas ou aumente a renda/limite do cliente.
 - O sistema desktop **não** conhece essa regra; vendas no carnê feitas por ele não são bloqueadas (mas contam no valor em aberto).
+
+### Recebimento de carnê, juros e multa
+
+- Formas: dinheiro, Pix e cartão, combináveis; a soma precisa ser igual ao total a receber (400 se não for). Sem `pagamentos`, tudo é registrado em dinheiro (compatível com clientes antigos da API).
+- Cada recebimento continua gravando `mv_financeiro` (parcela paga) e `mv_vendas_movimento` (modo recebimento, como o desktop) e passa a gravar `api_recebimentos_carne` com o valor de cada forma e o troco.
+- Juros e multa (`api_config_carne`): multa % cobrada uma vez quando o atraso passa da carência; juros % **ao dia** contados desde o vencimento, juros simples, arredondados em centavos. Ficam em `vr_juros` da parcela. Se `juros` for informado na baixa, ele substitui o cálculo.
+- Fechamento de caixa: `entradas` soma vendas e recebimentos de carnê em cada forma; `dinheiroEsperadoNaGaveta` = troco inicial + dinheiro de vendas + dinheiro de recebimentos. `recebimentosCarne` traz o detalhe por forma. Recebimentos sem registro em `api_recebimentos_carne` (feitos pelo desktop ou antes desta versão) contam como dinheiro.
+- Impressão: o carnê sai no layout canhoto + recibo, 2 parcelas por folha A4, com o código da parcela em EAN-13 (Code 128 se o código não for um EAN válido).
 
 ### Estorno
 
@@ -477,9 +493,9 @@ npm test                 # unitários (não precisam de banco)
 npm run test:e2e         # inicialização da API com banco simulado + fluxo SaaS real (este, só com E2E_SAAS=true)
 ```
 
-- **Unitários:** leitor de dumps (MySQL 4 e 8, escapes, comentários, pedaços de qualquer tamanho, instruções perigosas ignoradas), análise e substituição contra o esquema real, fluxo de restauração (backup de segurança, falha sem alterar dados, religação de logins, usuários com senha temporária, isolamento, bloqueio 503); ZIP do backup (integridade e CRC), dump SQL da empresa sem senhas e filtrado pela empresa, mysqldump (argumentos, senha fora da linha de comando, volta ao exportador interno quando falha), geração/falha/expiração/isolamento do serviço de backups e permissões; cálculo e registro de venda, limite do carnê, operações de saldo, relatórios, códigos e datas; guard de acesso (plataforma × empresa, empresa suspensa, permissões, senha temporária), permissões por papel, códigos de ativação, remoção de segredos da auditoria e **isolamento do contexto por empresa com requisições concorrentes**.
+- **Unitários:** juros e multa do carnê, recebimento dividido entre formas com troco, caixa somando recebimentos por forma; leitor de dumps (MySQL 4 e 8, escapes, comentários, pedaços de qualquer tamanho, instruções perigosas ignoradas), análise e substituição contra o esquema real, fluxo de restauração (backup de segurança, falha sem alterar dados, religação de logins, usuários com senha temporária, isolamento, bloqueio 503); ZIP do backup (integridade e CRC), dump SQL da empresa sem senhas e filtrado pela empresa, mysqldump (argumentos, senha fora da linha de comando, volta ao exportador interno quando falha), geração/falha/expiração/isolamento do serviço de backups e permissões; cálculo e registro de venda, limite do carnê, operações de saldo, relatórios, códigos e datas; guard de acesso (plataforma × empresa, empresa suspensa, permissões, senha temporária), permissões por papel, códigos de ativação, remoção de segredos da auditoria e **isolamento do contexto por empresa com requisições concorrentes**.
 - **Inicialização (`test/inicializacao.e2e-spec.ts`):** sobe o `AppModule` real com banco simulado e confere 401/400, envelope de resposta e todas as rotas no Swagger.
-- **Fluxo SaaS (`test/api.e2e-spec.ts`):** com MySQL real, cria bancos temporários `e2e_*`, ativa duas empresas por código, confere que produtos, clientes e vendas não cruzam, que empresa não acessa `/plataforma`, permissões do vendedor, senha temporária, suspensão/reativação, rotação do refresh token, auditoria, fechamento de caixa seguido de backup (download, integridade, dados só da empresa, 404 para outra empresa, 403 para gerente e superadministrador) backup global, carga de um dump no formato do sistema anterior na loja B (senhas temporárias, backup de segurança, dados só na loja B) e restauração do ZIP da loja A pela própria loja; no fim apaga os bancos `e2e_*` que criou. Para rodar, use um MySQL de teste e defina `E2E_SAAS=true` (e `E2E_DB_*` se for outro servidor).
+- **Fluxo SaaS (`test/api.e2e-spec.ts`):** com MySQL real, cria bancos temporários `e2e_*`, ativa duas empresas por código, confere que produtos, clientes e vendas não cruzam, que empresa não acessa `/plataforma`, permissões do vendedor, senha temporária, suspensão/reativação, rotação do refresh token, auditoria, fechamento de caixa seguido de backup (download, integridade, dados só da empresa, 404 para outra empresa, 403 para gerente e superadministrador) backup global, venda no carnê com impressão e recebimento dividido em Pix e dinheiro somando no caixa, carga de um dump no formato do sistema anterior na loja B (senhas temporárias, backup de segurança, dados só na loja B) e restauração do ZIP da loja A pela própria loja; no fim apaga os bancos `e2e_*` que criou. Para rodar, use um MySQL de teste e defina `E2E_SAAS=true` (e `E2E_DB_*` se for outro servidor).
 
 ---
 
@@ -506,7 +522,7 @@ npm run test:e2e         # inicialização da API com banco simulado + fluxo Saa
 ## 12. Limitações conhecidas
 
 - **Empresa única:** o banco não tem `id_empresa`; não há cadastro/exclusão de empresas.
-- **Forma de pagamento do recebimento de carnê** não é guardada pelo banco (o desktop grava só o valor); o caixa a considera dinheiro.
+- **Recebimentos de carnê feitos pelo desktop** não registram a forma de pagamento; o caixa os considera dinheiro.
 - **Vendas não têm hora no banco**, só data; a hora exibida vem do `controle`.
 - **Valor para o próximo dia** no fechamento de caixa não tem coluna no banco; é só devolvido na resposta.
 - `modo_lancamento` (0/2/3) e `modo_venda = 3` não têm significado documentado; a API grava 0 (vendas) e 2 (trocas), como o desktop.

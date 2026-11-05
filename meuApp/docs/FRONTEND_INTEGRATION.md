@@ -126,3 +126,10 @@ src/
 - As senhas temporárias dos funcionários criados aparecem uma única vez (**Ver senhas temporárias**, `GET /importacoes/:id/senhas`).
 - No histórico de cópias, **Restaurar** prepara a restauração de um backup já gerado (`POST /backups/:id/restaurar`). Se a restauração falhar, a tela oferece **Restaurar backup de segurança**.
 - Ao reabrir a tela, a importação em andamento (ou pronta para confirmar) é retomada.
+
+## Carnê: impressão e recebimento
+
+- **Imprimir carnê**: na venda concluída com carnê (Nova venda) e em **Reimprimir carnê** em cada parcela da tela de Carnês. Usa `GET /carnes/venda/:controle/impressao`; layout do modelo da loja (canhoto + recibo, 2 por folha A4) em `components/ImpressaoCarne.tsx`, código de barras em SVG (`components/CodigoBarras.tsx`, EAN-13 ou Code 128, sem dependências). Parcelas já pagas saem com "PAGA EM" e o valor pago.
+- **Receber parcelas**: juros e multa vêm de `POST /carnes/simulacao` (podem ser alterados), formas Dinheiro/Pix/Cartão com "Tudo em…" e "+ falta", valor entregue e troco; o recibo mostra as formas.
+- **Caixa**: "Por forma de pagamento" soma vendas e recebimentos em cada forma e mostra o detalhe dos recebimentos de carnê.
+- **Empresa**: painel "Juros e multa do carnê" (`GET/PATCH /carnes/configuracao`).
