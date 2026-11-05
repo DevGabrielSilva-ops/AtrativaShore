@@ -35,6 +35,7 @@ export function SeletorBusca<T>({
   const [aberto, setAberto] = useState(false);
   const [ativo, setAtivo] = useState(0);
   const [buscandoExato, setBuscandoExato] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
   const atrasado = useAtrasado(texto, 250);
   const termo = atrasado.trim();
   const pesquisar = termo.length >= minimo;
@@ -97,15 +98,22 @@ export function SeletorBusca<T>({
       if (!digitado) return;
       if (buscarExato && /^\d{4,}$/.test(digitado)) {
         setBuscandoExato(true);
+        setTexto('');
+        setAberto(false);
         try {
           const exato = await buscarExato(digitado);
           if (exato) {
+            setAviso(null);
             escolher(exato);
-            return;
+          } else {
+            setAviso(`Código ${digitado} não cadastrado. Nenhum produto foi adicionado.`);
           }
-        } catch {} finally {
+        } catch (falha) {
+          setAviso(`Não foi possível buscar o código ${digitado}: ${mensagemErro(falha)}`);
+        } finally {
           setBuscandoExato(false);
         }
+        return;
       }
       if (aberto && itens[ativo]) escolher(itens[ativo]);
     }
@@ -134,12 +142,18 @@ export function SeletorBusca<T>({
           onChange={(e) => {
             setTexto(e.target.value);
             setAberto(true);
+            setAviso(null);
           }}
           onFocus={() => itens.length && setAberto(true)}
           onKeyDown={teclado}
         />
         {carregando ? <Spinner tamanho={16} /> : null}
       </div>
+      {aviso ? (
+        <p className="seletor-aviso" role="alert">
+          {aviso}
+        </p>
+      ) : null}
       {aberto && texto.trim().length >= minimo ? (
         <ul className="seletor-lista" id={idLista} role="listbox">
           {erro ? <li className="seletor-vazio">{erro}</li> : null}

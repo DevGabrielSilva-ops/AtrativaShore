@@ -5,6 +5,7 @@ import { AtivacaoModule } from './ativacao/ativacao.module.js';
 import { AuditoriaInterceptor } from './auditoria/auditoria.interceptor.js';
 import { AuditoriaModule } from './auditoria/auditoria.module.js';
 import { AuthModule } from './auth/auth.module.js';
+import { BackupsModule } from './backup/backups.module.js';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard.js';
 import { CaixaModule } from './caixa/caixa.module.js';
 import { CarnesModule } from './carnes/carnes.module.js';
@@ -15,6 +16,7 @@ import { ConfiguracaoModule } from './config/configuracao.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { EmpresaModule } from './empresa/empresa.module.js';
 import { EstoqueModule } from './estoque/estoque.module.js';
+import { EtiquetasModule } from './etiquetas/etiquetas.module.js';
 import { FornecedoresModule } from './fornecedores/fornecedores.module.js';
 import { FuncionariosModule } from './funcionarios/funcionarios.module.js';
 import { PlataformaModule } from './plataforma/admin/plataforma.module.js';
@@ -38,10 +40,12 @@ import { VendasModule } from './vendas/vendas.module.js';
     FornecedoresModule,
     ProdutosModule,
     EstoqueModule,
+    EtiquetasModule,
     VendasModule,
     CarnesModule,
     CaixaModule,
     RelatoriosModule,
+    BackupsModule,
   ],
   controllers: [SaudeController],
   providers: [

@@ -15,6 +15,7 @@ const Clientes = lazy(() => import('./pages/Clientes/Clientes'));
 const Fornecedores = lazy(() => import('./pages/Fornecedores/Fornecedores'));
 const Produtos = lazy(() => import('./pages/Produtos/Produtos'));
 const Estoque = lazy(() => import('./pages/Estoque/Estoque'));
+const MaletaEtiquetas = lazy(() => import('./pages/Etiquetas/MaletaEtiquetas'));
 const NovaVenda = lazy(() => import('./pages/Vendas/NovaVenda'));
 const HistoricoVendas = lazy(() => import('./pages/Vendas/HistoricoVendas'));
 const Caixa = lazy(() => import('./pages/Caixa/Caixa'));
@@ -33,6 +34,7 @@ const Codigos = lazy(() => import('./pages/Plataforma/Codigos'));
 const Planos = lazy(() => import('./pages/Plataforma/Planos'));
 const Administradores = lazy(() => import('./pages/Plataforma/Administradores'));
 const AuditoriaPlataforma = lazy(() => import('./pages/Plataforma/AuditoriaPlataforma'));
+const BackupsPlataforma = lazy(() => import('./pages/Plataforma/BackupsPlataforma'));
 const NaoEncontrada = lazy(() => import('./pages/NaoEncontrada'));
 
 function Carregando() {
@@ -131,6 +133,7 @@ export default function App() {
                 <Route path="planos" element={<Planos />} />
                 <Route path="administradores" element={<Administradores />} />
                 <Route path="auditoria" element={<AuditoriaPlataforma />} />
+                <Route path="backups" element={<BackupsPlataforma />} />
                 <Route path="perfil" element={<Perfil />} />
                 <Route path="senha" element={<SenhaPlataforma />} />
                 <Route path="*" element={<NaoEncontrada />} />
@@ -150,6 +153,7 @@ export default function App() {
                 <Route path="funcionarios" element={so(['funcionarios.consultar'], <Funcionarios />)} />
                 <Route path="produtos" element={so(['produtos.consultar'], <Produtos />)} />
                 <Route path="estoque" element={so(['estoque.consultar'], <Estoque />)} />
+                <Route path="etiquetas" element={so(['produtos.consultar'], <MaletaEtiquetas />)} />
                 <Route path="vendas" element={so(['vendas.consultar'], <HistoricoVendas />)} />
                 <Route path="vendas/nova" element={so(['vendas.registrar'], <NovaVenda />)} />
                 <Route path="caixa" element={so(['caixa.operar'], <Caixa />)} />

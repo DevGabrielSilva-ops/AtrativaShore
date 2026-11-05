@@ -38,6 +38,8 @@ export function opcoesBanco(config: Configuracao): DataSourceOptions {
 export function opcoesPlataforma(config: Configuracao): DataSourceOptions {
   return {
     ...base(config, config.plataforma.banco),
+    timezone: 'Z',
+    dateStrings: ['DATE'],
     logging: config.banco.log ? ['query', 'error'] : ['error'],
     charset: 'utf8mb4',
     entities: ENTIDADES_PLATAFORMA,

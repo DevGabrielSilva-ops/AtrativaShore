@@ -137,6 +137,88 @@ export const api = {
   delete: (caminho: string) => requisitar<void>(caminho, { metodo: 'DELETE' }),
 };
 
+export async function baixarArquivo(caminho: string, nomePadrao: string, semRenovar = false): Promise<void> {
+  const cabecalhos: Record<string, string> = { Accept: 'application/zip, application/json' };
+  if (tokenAtual) cabecalhos.Authorization = `Bearer ${tokenAtual}`;
+  let resposta: Response;
+  try {
+    resposta = await fetch(montarUrl(caminho), { headers: cabecalhos, credentials: 'include', cache: 'no-store' });
+  } catch {
+    throw new ApiError(0, mensagensDoCorpo(null, 0));
+  }
+  if (!resposta.ok) {
+    if (resposta.status === 401 && tokenAtual && !semRenovar) {
+      if (await renovarUmaVez()) return baixarArquivo(caminho, nomePadrao, true);
+      aoExpirarSessao?.();
+    }
+    const corpo: unknown = await resposta.json().catch(() => null);
+    throw new ApiError(resposta.status, mensagensDoCorpo(corpo, resposta.status));
+  }
+  const disposicao = resposta.headers.get('Content-Disposition') ?? '';
+  const codificado = /filename\*=UTF-8''([^;]+)/i.exec(disposicao)?.[1];
+  const simples = /filename="([^"]+)"/i.exec(disposicao)?.[1];
+  const nome = (codificado ? decodeURIComponent(codificado) : simples) || nomePadrao;
+  const arquivo = await resposta.blob();
+  const url = URL.createObjectURL(arquivo);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = nome;
+  link.rel = 'noopener';
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+export function enviarArquivo<T>(
+  caminho: string,
+  campo: string,
+  arquivo: File,
+  aoProgresso?: (percentual: number) => void,
+  semRenovar = false,
+): Promise<T> {
+  return new Promise<T>((resolver, rejeitar) => {
+    const requisicao = new XMLHttpRequest();
+    requisicao.open('POST', montarUrl(caminho));
+    requisicao.withCredentials = true;
+    requisicao.setRequestHeader('Accept', 'application/json');
+    if (tokenAtual) requisicao.setRequestHeader('Authorization', `Bearer ${tokenAtual}`);
+    requisicao.upload.onprogress = (evento) => {
+      if (evento.lengthComputable) aoProgresso?.(Math.round((evento.loaded / evento.total) * 100));
+    };
+    requisicao.onerror = () => rejeitar(new ApiError(0, mensagensDoCorpo(null, 0)));
+    requisicao.onload = () => {
+      let corpo: unknown = null;
+      try {
+        corpo = requisicao.responseText ? JSON.parse(requisicao.responseText) : null;
+      } catch {
+        corpo = null;
+      }
+      if (requisicao.status === 401 && tokenAtual && !semRenovar) {
+        void renovarUmaVez().then((novo) => {
+          if (novo) enviarArquivo<T>(caminho, campo, arquivo, aoProgresso, true).then(resolver, rejeitar);
+          else {
+            aoExpirarSessao?.();
+            rejeitar(new ApiError(401, mensagensDoCorpo(corpo, 401)));
+          }
+        });
+        return;
+      }
+      if (requisicao.status < 200 || requisicao.status >= 300) {
+        const mensagens =
+          requisicao.status === 413 ? ['O arquivo é maior que o limite permitido pelo servidor.'] : mensagensDoCorpo(corpo, requisicao.status);
+        rejeitar(new ApiError(requisicao.status, mensagens));
+        return;
+      }
+      resolver((corpo && typeof corpo === 'object' && 'data' in corpo ? (corpo as { data: T }).data : corpo) as T);
+    };
+    const formulario = new FormData();
+    formulario.append(campo, arquivo, arquivo.name);
+    requisicao.send(formulario);
+  });
+}
+
 export function mensagemErro(erro: unknown): string {
   if (erro instanceof ApiError) return erro.mensagens.join(' • ');
   if (erro instanceof Error) return erro.message;

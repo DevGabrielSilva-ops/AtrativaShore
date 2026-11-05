@@ -143,6 +143,10 @@ Todas estão em `.env.example`. As obrigatórias são `DB_HOST`, `DB_USERNAME`, 
 | `CARNE_MAX_PARCELAS` | 12 | Máximo de parcelas no carnê |
 | `CARNE_LIMITE_PERCENTUAL_RENDA` | 50 | Limite do carnê = este % da faixa salarial do cliente |
 | `CARNE_LIMITE_PADRAO` | 300 | Limite do carnê (R$) para clientes sem faixa salarial |
+| `BACKUP_DIR` | armazenamento/backups | Pasta dos ZIPs de backup (fora do Git e de qualquer pasta pública) |
+| `BACKUP_RETENCAO_HORAS` | 24 | Tempo (1 a 720 h) que o arquivo fica disponível para download antes de ser apagado |
+| `MYSQLDUMP_PATH` | mysqldump | Caminho do `mysqldump` usado nos backups; `desativado` força o exportador interno (usado também quando o `mysqldump` não é encontrado) |
+| `BACKUP_IMPORTACAO_MAX_MB` | 512 | Tamanho máximo do arquivo enviado em Carregar backup |
 | `E2E_DB_DATABASE`, `E2E_LOGIN`, `E2E_SENHA` | — | Testes e2e (seção 10) |
 
 ---
@@ -157,6 +161,7 @@ Todas estão em `.env.example`. As obrigatórias são `DB_HOST`, `DB_USERNAME`, 
 | `CriarApiCredencial` | Cria `api_credencial` (hash bcrypt da senha da API) sem alterar `cad_login` | Remove a tabela |
 | `AdicionarVrPix` | Cria `mv_vendas.vr_pix` | Remove a coluna (e os valores de Pix) |
 | `AdicionarLimiteCarne` | Cria `cad_clientes.limite_carne` (NULL para todos = limite calculado) | Remove a coluna (e os limites manuais) |
+| `CriarTabelasCarne` | Cria `api_recebimentos_carne` (forma de pagamento de cada recebimento) e `api_config_carne` (juros ao dia, multa, carência); não altera tabelas do sistema anterior | Remove as duas tabelas |
 
 Antes de rodar no banco da loja:
 
@@ -270,7 +275,10 @@ Todos com prefixo `/api/v1`. Detalhes de cada campo no Swagger.
 | **Carnês** |||
 | GET | `/carnes?idCliente=&situacao=ABERTA\|PAGA\|TODAS&vencidas=` | Parcelas |
 | GET | `/carnes/:codigo` | Parcela pelo código de 13 dígitos |
-| POST | `/carnes/baixa` | Recebe uma ou mais parcelas (juros/desconto opcionais) |
+| POST | `/carnes/baixa` | Recebe uma ou mais parcelas: `pagamentos` em DINHEIRO/PIX/CARTAO (combináveis, soma = total), `valorRecebidoDinheiro` para o troco, juros e multa sempre calculados pelo sistema (`desconto` opcional) |
+| POST | `/carnes/simulacao` | Juros e multa das parcelas para uma data, sem gravar |
+| GET, PATCH | `/carnes/configuracao` | Juros ao dia, multa e carência (PATCH: `empresa.configurar`) |
+| GET | `/carnes/venda/:controle/impressao` | Empresa, cliente, venda e parcelas para imprimir ou reimprimir o carnê |
 | **Caixa** |||
 | GET | `/caixa/atual` | Caixa aberto do terminal + resumo (ou `null`) |
 | POST | `/caixa/abrir`, `/caixa/fechar` | Abre / fecha |
@@ -287,6 +295,20 @@ Todos com prefixo `/api/v1`. Detalhes de cada campo no Swagger.
 | GET | `/relatorios/baixas-carne` | Parcelas recebidas |
 | GET | `/relatorios/mercadorias` | Entradas por nota e investimento |
 | GET | `/relatorios/movimentacoes` | Movimentações de estoque |
+| **Backups** (permissão `backup.gerar`) |||
+| POST | `/backups` | Inicia o backup da empresa do usuário (202; devolve o mesmo se já houver um em andamento) |
+| GET | `/backups`, `/backups/:id` | Histórico e progresso (`status`, `progresso`, `etapa`, `disponivel`) |
+| GET | `/backups/:id/download` | Baixa o ZIP (`Content-Disposition: attachment`) |
+| **Backup global** (somente superadministrador) |||
+| POST, GET | `/plataforma/backups` | Inicia / lista backups completos da plataforma |
+| GET | `/plataforma/backups/:id`, `/plataforma/backups/:id/download` | Progresso / download |
+| **Carregar backup** (permissão `backup.restaurar`) |||
+| POST | `/importacoes` | Envia `arquivo` (multipart: `.zip` do Atrativa Shore ou dump `.sql`) para análise; não altera dados |
+| GET | `/importacoes`, `/importacoes/:id` | Histórico, progresso, análise e resultado |
+| POST | `/importacoes/:id/confirmar` | `{ "confirmacao": "SUBSTITUIR" }`: gera o backup de segurança e substitui os dados |
+| POST | `/importacoes/:id/cancelar` | Descarta uma importação analisada |
+| GET | `/importacoes/:id/senhas` | Senhas temporárias dos funcionários criados (uma única vez) |
+| POST | `/backups/:id/restaurar` | Prepara a restauração de um backup do histórico |
 | GET | `/health` | Saúde da API e do banco (público) |
 
 ---
@@ -372,7 +394,11 @@ POST /api/v1/estoque/entradas
 
 ```http
 POST /api/v1/carnes/baixa
-{ "parcelas": [{ "codigo": "2108612020015", "juros": 2.5 }] }
+{
+  "parcelas": [{ "codigo": "2108612020015" }, { "codigo": "2108612020022", "desconto": 1 }],
+  "pagamentos": [{ "forma": "PIX", "valor": 80 }, { "forma": "DINHEIRO", "valor": 21.75 }],
+  "valorRecebidoDinheiro": 30
+}
 ```
 
 ---
@@ -402,6 +428,14 @@ POST /api/v1/carnes/baixa
 - Não há liberação acima do limite: para vender mais, receba parcelas ou aumente a renda/limite do cliente.
 - O sistema desktop **não** conhece essa regra; vendas no carnê feitas por ele não são bloqueadas (mas contam no valor em aberto).
 
+### Recebimento de carnê, juros e multa
+
+- Formas: dinheiro, Pix e cartão, combináveis; a soma precisa ser igual ao total a receber (400 se não for). Sem `pagamentos`, tudo é registrado em dinheiro (compatível com clientes antigos da API).
+- Cada recebimento continua gravando `mv_financeiro` (parcela paga) e `mv_vendas_movimento` (modo recebimento, como o desktop) e passa a gravar `api_recebimentos_carne` com o valor de cada forma e o troco.
+- Juros e multa (`api_config_carne`): multa % cobrada uma vez quando o atraso passa da carência; juros % **ao dia** contados desde o vencimento, juros simples, arredondados em centavos. Ficam em `vr_juros` da parcela. Não podem ser digitados na baixa: o sistema sempre usa o cálculo (o campo aparece bloqueado na tela; só o desconto é editável).
+- Fechamento de caixa: `entradas` soma vendas e recebimentos de carnê em cada forma; `dinheiroEsperadoNaGaveta` = troco inicial + dinheiro de vendas + dinheiro de recebimentos. `recebimentosCarne` traz o detalhe por forma. Recebimentos sem registro em `api_recebimentos_carne` (feitos pelo desktop ou antes desta versão) contam como dinheiro.
+- Impressão: o carnê sai no layout canhoto + recibo, 2 parcelas por folha A4, com o código da parcela em EAN-13 (Code 128 se o código não for um EAN válido).
+
 ### Estorno
 
 Lógico (`estornado = 1`, como no desktop). Devolve os itens ao estoque, retira de novo os itens recebidos em troca e marca os lançamentos financeiros como estornados. Bloqueado se alguma parcela do carnê já foi paga.
@@ -412,6 +446,35 @@ Lógico (`estornado = 1`, como no desktop). Devolve os itens ao estoque, retira 
 - Ajuste negativo (perda, avaria...) é gravado com quantidade negativa e `numerodanota = "AJ-<MOTIVO>"`.
 - Entrada de nota gera conta a pagar em `mv_financeiro` (origem E, plano "Compra de mercadoria"), como o desktop.
 - **Estoque baixo:** saldo ≤ `min_estoque`; como nenhum produto tem mínimo cadastrado hoje, usa `ESTOQUE_BAIXO_LIMITE` ou `?limite=`.
+
+### Backup dos dados
+
+- **Não altera o fechamento de caixa.** O backup é pedido depois do `POST /caixa/fechar`, em outra requisição; uma falha no backup não reverte nem bloqueia o fechamento.
+- Roda em segundo plano na própria API. O registro fica em `plataforma_backups` (`PROCESSANDO` → `CONCLUIDO` / `FALHOU` → `EXPIRADO`) e o frontend acompanha `progresso`. Só um backup por empresa (e um global) é gerado por vez. Se a API reiniciar no meio, o registro vira `FALHOU`.
+- A empresa vem sempre do usuário autenticado; buscar o id de outra empresa devolve 404. Funcionários só acessam se o cargo tiver `backup.gerar` (o administrador da empresa tem; gerente, vendedor e estoquista não, por padrão).
+- **ZIP da empresa** (`atrativa-shore-backup-<empresa>-<data>.zip`):
+  - `dados/empresa.sql`: **dump MySQL** de todas as tabelas do banco da empresa (estrutura e dados, ids originais), gerado pelo `mysqldump --single-transaction --skip-add-drop-table --hex-blob`. As tabelas com credenciais (`cad_login`, `cad_empresa`, `api_credencial`) saem do `mysqldump` e são acrescentadas no fim do mesmo arquivo com as colunas de senha como `NULL` (`api_credencial` só com a estrutura);
+  - `dados/plataforma.sql`: registros desta empresa no banco central (empresa, plano, cargos, usuários com `senha_hash` NULL, ativações e auditoria), com `CREATE TABLE IF NOT EXISTS` e `INSERT`;
+  - `empresa.json`: cadastro e configurações comerciais, para consulta rápida;
+  - `metadados.json`: formato `atrativa-shore-backup-empresa`, `versaoFormato` 2, data, responsável, ferramenta usada, registros por tabela e o que ficou de fora;
+  - **sem** senhas, hashes, `chave_liberacao`, refresh tokens nem códigos de ativação.
+- **mysqldump:** a API procura o `mysqldump` no PATH (ou em `MYSQLDUMP_PATH`). A senha vai num arquivo de opções temporário, nunca na linha de comando. Se ele não existir ou falhar, a API gera o mesmo formato de dump sozinha (snapshot consistente) e registra o motivo em `metadados.json` e no log. `MYSQLDUMP_PATH=desativado` força o exportador interno.
+- Restaurar: `mysql -u <usuario> -p -e "CREATE DATABASE <novo> CHARACTER SET utf8mb4"` e `mysql -u <usuario> -p <novo> < dados/empresa.sql`. Os usuários precisam de senha temporária nova depois.
+- **Backup global:** um único dump do `mysqldump --databases` (central + cada empresa provisionada, com rotinas e gatilhos) ou, sem ele, um script por banco. `plataforma_refresh_tokens` fica de fora. Contém hashes de senha e as senhas do sistema anterior: guarde em local protegido. Os scripts não têm `DROP TABLE`.
+- Os arquivos ficam em `BACKUP_DIR/empresa-<id>/` ou `BACKUP_DIR/plataforma/` com nome aleatório e permissão só do usuário da API; o download confere o status e a validade, e a limpeza apaga os vencidos a cada 30 minutos e na inicialização.
+- Auditoria: `backup.gerado`, `backup.falhou` e `backup.baixado`.
+- Requer `npm run plataforma:migrar` para criar `plataforma_backups` (migration `CriarBackups1762400000002`, só cria a tabela).
+
+### Carregar backup (restauração e migração do sistema anterior)
+
+- Aceita o ZIP do Atrativa Shore (formato 1 em JSON ou 2 em SQL) e qualquer dump `.sql` do MySQL, inclusive o `mysqldump` 8.19 do MySQL 4.0 do sistema anterior (`TYPE=MyISAM`, `INSERT` sem lista de colunas, textos em Latin-1/CP850).
+- **O SQL enviado nunca é executado.** Um leitor próprio separa as instruções, ignora tudo que não é `CREATE TABLE` ou `INSERT`/`REPLACE` (como `DROP`, `USE`, `GRANT` e `UPDATE`) e extrai só os valores literais. Os dados são gravados com `INSERT` parametrizado, apenas nas tabelas e colunas que existem no banco da empresa do usuário.
+- **Duas etapas.** A análise não altera nada e mostra tabelas, registros, colunas que ficam vazias (ex.: `vr_pix`, `limite_carne` no dump antigo), tabelas ignoradas, avisos e os usuários do sistema anterior que serão criados. A confirmação exige digitar `SUBSTITUIR`.
+- **Substituição.** Para cada tabela presente no arquivo, os dados atuais são apagados e substituídos com os ids originais; tabelas ausentes no arquivo não são tocadas. Nunca entram `api_credencial`, `api_migrations` nem `cad_login.senha`. A `chave_liberacao` atual é mantida quando o arquivo a traz vazia.
+- **Segurança dos dados.** Antes de gravar, a API gera um backup de segurança da empresa (`...-antes-da-restauracao.zip`, guardado por 7 dias); se ele falhar, nada é alterado. As tabelas MyISAM do legado não têm transação: se a gravação falhar no meio, a mensagem indica o backup de segurança, que pode ser carregado com um clique. Durante a restauração, alterações na empresa respondem 503.
+- **Acessos.** Os funcionários atuais continuam entrando normalmente: se o login espelho deles em `cad_login` mudou, a API cria outro e religa. Os usuários do sistema anterior (perfis que não são `ACESSO WEB`) viram funcionários (ADMINISTRADOR → administrador, demais → vendedor) com senha temporária mostrada uma única vez. Acima do limite do plano, ficam inativos.
+- Auditoria: `backup.restaurado`, `backup.restauracao_falhou`, `funcionario.importado`. Requer `npm run plataforma:migrar` (migration `CriarImportacoes1762400000003`, só cria `plataforma_importacoes`).
+- Os arquivos enviados ficam em `BACKUP_DIR/importacoes/` (fora do Git, sem acesso público) e são apagados após a restauração, o cancelamento ou 24 h sem confirmação.
 
 ### Exclusões
 
@@ -430,9 +493,9 @@ npm test                 # unitários (não precisam de banco)
 npm run test:e2e         # inicialização da API com banco simulado + fluxo SaaS real (este, só com E2E_SAAS=true)
 ```
 
-- **Unitários:** cálculo e registro de venda, limite do carnê, operações de saldo, relatórios, códigos e datas; guard de acesso (plataforma × empresa, empresa suspensa, permissões, senha temporária), permissões por papel, códigos de ativação, remoção de segredos da auditoria e **isolamento do contexto por empresa com requisições concorrentes**.
+- **Unitários:** juros e multa do carnê, recebimento dividido entre formas com troco, caixa somando recebimentos por forma; leitor de dumps (MySQL 4 e 8, escapes, comentários, pedaços de qualquer tamanho, instruções perigosas ignoradas), análise e substituição contra o esquema real, fluxo de restauração (backup de segurança, falha sem alterar dados, religação de logins, usuários com senha temporária, isolamento, bloqueio 503); ZIP do backup (integridade e CRC), dump SQL da empresa sem senhas e filtrado pela empresa, mysqldump (argumentos, senha fora da linha de comando, volta ao exportador interno quando falha), geração/falha/expiração/isolamento do serviço de backups e permissões; cálculo e registro de venda, limite do carnê, operações de saldo, relatórios, códigos e datas; guard de acesso (plataforma × empresa, empresa suspensa, permissões, senha temporária), permissões por papel, códigos de ativação, remoção de segredos da auditoria e **isolamento do contexto por empresa com requisições concorrentes**.
 - **Inicialização (`test/inicializacao.e2e-spec.ts`):** sobe o `AppModule` real com banco simulado e confere 401/400, envelope de resposta e todas as rotas no Swagger.
-- **Fluxo SaaS (`test/api.e2e-spec.ts`):** com MySQL real, cria bancos temporários `e2e_*`, ativa duas empresas por código, confere que produtos, clientes e vendas não cruzam, que empresa não acessa `/plataforma`, permissões do vendedor, senha temporária, suspensão/reativação, rotação do refresh token e auditoria; no fim apaga os bancos `e2e_*` que criou. Para rodar, use um MySQL de teste e defina `E2E_SAAS=true` (e `E2E_DB_*` se for outro servidor).
+- **Fluxo SaaS (`test/api.e2e-spec.ts`):** com MySQL real, cria bancos temporários `e2e_*`, ativa duas empresas por código, confere que produtos, clientes e vendas não cruzam, que empresa não acessa `/plataforma`, permissões do vendedor, senha temporária, suspensão/reativação, rotação do refresh token, auditoria, fechamento de caixa seguido de backup (download, integridade, dados só da empresa, 404 para outra empresa, 403 para gerente e superadministrador) backup global, venda no carnê com impressão e recebimento dividido em Pix e dinheiro somando no caixa, carga de um dump no formato do sistema anterior na loja B (senhas temporárias, backup de segurança, dados só na loja B) e restauração do ZIP da loja A pela própria loja; no fim apaga os bancos `e2e_*` que criou. Para rodar, use um MySQL de teste e defina `E2E_SAAS=true` (e `E2E_DB_*` se for outro servidor).
 
 ---
 
@@ -459,7 +522,7 @@ npm run test:e2e         # inicialização da API com banco simulado + fluxo Saa
 ## 12. Limitações conhecidas
 
 - **Empresa única:** o banco não tem `id_empresa`; não há cadastro/exclusão de empresas.
-- **Forma de pagamento do recebimento de carnê** não é guardada pelo banco (o desktop grava só o valor); o caixa a considera dinheiro.
+- **Recebimentos de carnê feitos pelo desktop** não registram a forma de pagamento; o caixa os considera dinheiro.
 - **Vendas não têm hora no banco**, só data; a hora exibida vem do `controle`.
 - **Valor para o próximo dia** no fechamento de caixa não tem coluna no banco; é só devolvido na resposta.
 - `modo_lancamento` (0/2/3) e `modo_venda = 3` não têm significado documentado; a API grava 0 (vendas) e 2 (trocas), como o desktop.

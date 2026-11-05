@@ -1,10 +1,12 @@
 import type { INestApplication } from '@nestjs/common';
 import { ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { createHash } from 'node:crypto';
 import bcrypt from 'bcrypt';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { DataSource } from 'typeorm';
+import { lerZip } from '../src/backup/ler-zip.js';
 
 try {
   process.loadEnvFile('.env');
@@ -45,6 +47,8 @@ describe.skipIf(!habilitado)('Plataforma SaaS (e2e, MySQL real)', () => {
   let dono: ReturnType<typeof com>;
   let lojaA: ReturnType<typeof com>;
   let lojaB: ReturnType<typeof com>;
+  let idEmpresaA = 0;
+  let zipDaLojaA: Buffer | null = null;
 
   beforeAll(async () => {
     const { carregarConfiguracao } = await import('../src/config/configuracao.js');
@@ -111,6 +115,7 @@ describe.skipIf(!habilitado)('Plataforma SaaS (e2e, MySQL real)', () => {
     const b = await ativarNovaEmpresa(`Loja B ${marca}`, `admin-b-${marca}@e2e.test`);
     lojaA = a.cliente;
     lojaB = b.cliente;
+    idEmpresaA = a.idEmpresa;
 
     const reuso = await http().post('/api/v1/ativacao/validar').send({ codigo: a.codigo });
     expect(reuso.status).toBe(409);
@@ -224,5 +229,237 @@ describe.skipIf(!habilitado)('Plataforma SaaS (e2e, MySQL real)', () => {
     const daLojaA = await lojaA.get('/auditoria?limit=100').expect(200);
     const empresas = new Set(daLojaA.body.data.map((r: { idEmpresa: number }) => r.idEmpresa));
     expect(empresas.size).toBe(1);
+  });
+
+  const binario = (resposta: request.Response, pronto: (erro: Error | null, corpo: unknown) => void) => {
+    const fluxo = resposta as unknown as NodeJS.ReadableStream;
+    const partes: Buffer[] = [];
+    fluxo.on('data', (parte: Buffer) => partes.push(parte));
+    fluxo.on('end', () => pronto(null, Buffer.concat(partes)));
+  };
+
+  async function aguardarBackup(cliente: ReturnType<typeof com>, base: string, id: number) {
+    for (let tentativa = 0; tentativa < 120; tentativa += 1) {
+      const atual = await cliente.get(`${base}/${id}`).expect(200);
+      if (atual.body.data.status !== 'PROCESSANDO') return atual.body.data as { status: string; nomeArquivo: string; sha256: string; erro: string | null };
+      await new Promise((resolver) => setTimeout(resolver, 500));
+    }
+    throw new Error('Backup não terminou a tempo');
+  }
+
+  it('fecha o caixa, gera o backup da empresa e baixa um ZIP só com os dados dela', { timeout: 120_000 }, async () => {
+    await lojaA.post('/caixa/abrir').send({ valorAbertura: 50 }).expect(201);
+    const fechado = await lojaA.post('/caixa/fechar').send({}).expect(200);
+    const historicoAntes = await lojaA.get('/caixa/historico').expect(200);
+
+    const pedido = await lojaA.post('/backups').expect(202);
+    expect(pedido.body.data).toMatchObject({ tipo: 'EMPRESA', status: 'PROCESSANDO' });
+    const id: number = pedido.body.data.id;
+    const pronto = await aguardarBackup(lojaA, '/backups', id);
+    expect(pronto.status).toBe('CONCLUIDO');
+    expect(pronto.nomeArquivo).toMatch(new RegExp(`^atrativa-shore-backup-loja-a-${marca}-\\d{4}-\\d{2}-\\d{2}\\.zip$`));
+
+    const download = await lojaA.get(`/backups/${id}/download`).buffer(true).parse(binario).expect(200);
+    expect(download.headers['content-type']).toBe('application/zip');
+    expect(download.headers['content-disposition']).toContain(`filename="${pronto.nomeArquivo}"`);
+    const zip = download.body as Buffer;
+    zipDaLojaA = zip;
+    expect(createHash('sha256').update(zip).digest('hex')).toBe(pronto.sha256);
+    const entradas = lerZip(zip);
+    const texto = (nome: string) => entradas.get(nome)!.conteudo.toString('utf8');
+
+    const metadados = JSON.parse(texto('metadados.json'));
+    expect(metadados).toMatchObject({ formato: 'atrativa-shore-backup-empresa', versaoFormato: 2, empresa: { id: idEmpresaA } });
+    const sql = texto('dados/empresa.sql');
+    expect(sql).toMatch(/CREATE TABLE `cad_produtos`/);
+    expect(sql.split(`CAMISETA EXCLUSIVA A ${marca}`).length - 1).toBe(1);
+    expect(sql).toContain(`CLIENTE SOMENTE A ${marca}`);
+    expect(sql).toMatch(/INSERT INTO `mv_fechamento`/);
+    expect(sql).not.toMatch(/INSERT INTO `api_credencial`|DROP TABLE/);
+    const central = texto('dados/plataforma.sql');
+    expect(central).toContain(`admin-a-${marca}@e2e.test`);
+    expect(central).not.toContain(`admin-b-${marca}@e2e.test`);
+    expect(entradas.has('empresa.json')).toBe(true);
+    const todo = [...entradas.values()].map((e) => e.conteudo.toString('utf8')).join('\n');
+    expect(todo).not.toMatch(/senha-admin-e2e|nova-senha-vendedor|\$2[aby]\$/);
+    expect(todo).not.toContain(`Loja B ${marca}`);
+
+    const historicoDepois = await lojaA.get('/caixa/historico').expect(200);
+    expect(historicoDepois.body).toEqual(historicoAntes.body);
+    expect(fechado.body.data.resumo).toBeTruthy();
+
+    const lista = await lojaA.get('/backups').expect(200);
+    expect(lista.body.data[0]).toMatchObject({ id, status: 'CONCLUIDO', downloads: 1, disponivel: true });
+  });
+
+  it('impede outra empresa, funcionários sem permissão e o superadministrador de usar o backup da empresa', { timeout: 60_000 }, async () => {
+    const lista = await lojaA.get('/backups').expect(200);
+    const id: number = lista.body.data[0].id;
+    await lojaB.get(`/backups/${id}`).expect(404);
+    await lojaB.get(`/backups/${id}/download`).expect(404);
+    expect((await lojaB.get('/backups').expect(200)).body.meta.total).toBe(0);
+    await http().get(`/api/v1/backups/${id}/download`).expect(401);
+    await dono.post('/backups').expect(403);
+    await dono.get(`/plataforma/backups/${id}`).expect(404);
+    await lojaA.post('/plataforma/backups').expect(403);
+
+    const criado = await lojaA.post('/funcionarios').send({ nome: 'Gerente E2E', login: `ger-${marca}`, papel: 'MANAGER' }).expect(201);
+    const login = await entrar(`ger-${marca}`, criado.body.data.senhaTemporaria);
+    const troca = await com(login.body.data.accessToken)
+      .patch('/auth/senha')
+      .send({ senhaAtual: criado.body.data.senhaTemporaria, novaSenha: 'nova-senha-gerente' })
+      .expect(200);
+    const gerente = com(troca.body.data.accessToken);
+    await gerente.post('/backups').expect(403);
+    await gerente.get(`/backups/${id}/download`).expect(403);
+  });
+
+  async function aguardarImportacao(cliente: ReturnType<typeof com>, id: number, finais: string[]) {
+    for (let tentativa = 0; tentativa < 240; tentativa += 1) {
+      const atual = await cliente.get(`/importacoes/${id}`).expect(200);
+      if (finais.includes(atual.body.data.status)) return atual.body.data;
+      await new Promise((resolver) => setTimeout(resolver, 500));
+    }
+    throw new Error('Importação não terminou a tempo');
+  }
+
+  it('carrega o dump do sistema antigo na loja B, com backup de segurança e funcionários com senha temporária', { timeout: 180_000 }, async () => {
+    const dump = [
+      'CREATE TABLE cad_clientes (id int(8) unsigned NOT NULL auto_increment, nome_cliente varchar(60) default NULL, PRIMARY KEY (id)) TYPE=MyISAM;',
+      `INSERT INTO cad_clientes (id, nome_cliente) VALUES (501,'CLIENTE LEGADO ${marca}'),(502,'OUTRO LEGADO ${marca}');`,
+      'CREATE TABLE cad_login (id int(8) unsigned NOT NULL auto_increment, login varchar(15) default NULL, senha varchar(6) default NULL, id_perfil int(8) unsigned NOT NULL default 1, autoriza char(1) default NULL, PRIMARY KEY (id)) TYPE=MyISAM;',
+      `INSERT INTO cad_login VALUES (900,'L${marca.slice(-8)}','123456',1,'S');`,
+      "CREATE TABLE cad_login_perfil (id_perfil int(8) unsigned NOT NULL auto_increment, nome_perfil varchar(30) default NULL, menu_options varchar(250) default NULL, PRIMARY KEY (id_perfil)) TYPE=MyISAM;",
+      "INSERT INTO cad_login_perfil VALUES (1,'VENDEDOR','SNNN');",
+      'DROP DATABASE nao_deve_rodar;',
+    ].join('\n');
+    const enviado = await lojaB.post('/importacoes').attach('arquivo', Buffer.from(dump, 'latin1'), 'sistema-antigo.sql').expect(202);
+    const analisado = await aguardarImportacao(lojaB, enviado.body.data.id, ['PRONTO', 'FALHOU']);
+    expect(analisado.status).toBe('PRONTO');
+    expect(analisado.analise.registros).toBe(4);
+    await lojaB.post(`/importacoes/${analisado.id}/confirmar`).send({ confirmacao: 'errado' }).expect(400);
+    await lojaA.post(`/importacoes/${analisado.id}/confirmar`).send({ confirmacao: 'SUBSTITUIR' }).expect(404);
+    await lojaB.post(`/importacoes/${analisado.id}/confirmar`).send({ confirmacao: 'SUBSTITUIR' }).expect(202);
+    const final = await aguardarImportacao(lojaB, analisado.id, ['CONCLUIDO', 'FALHOU']);
+    expect(final.status).toBe('CONCLUIDO');
+    expect(final.idBackupSeguranca).toBeTruthy();
+    expect(final.resultado.usuariosCriados).toHaveLength(1);
+
+    const clientes = await lojaB.get(`/clientes?busca=LEGADO ${marca}`).expect(200);
+    expect(clientes.body.meta.total).toBe(2);
+    expect((await lojaA.get(`/clientes?busca=LEGADO ${marca}`).expect(200)).body.meta.total).toBe(0);
+    await lojaB.get('/produtos').expect(200);
+
+    const senhas = await lojaB.get(`/importacoes/${analisado.id}/senhas`).expect(200);
+    expect(senhas.body.data[0].senhaTemporaria).toHaveLength(12);
+    await lojaB.get(`/importacoes/${analisado.id}/senhas`).expect(404);
+    const login = await entrar(senhas.body.data[0].login, senhas.body.data[0].senhaTemporaria);
+    expect(login.status).toBe(200);
+    expect(login.body.data.usuario.trocarSenha).toBe(true);
+
+    const seguranca = await lojaB.get(`/backups/${final.idBackupSeguranca}`).expect(200);
+    expect(seguranca.body.data.nomeArquivo).toMatch(/antes-da-restauracao\.zip$/);
+  });
+
+  it('restaura o ZIP gerado pela própria empresa sem perder os dados nem o acesso', { timeout: 180_000 }, async () => {
+    expect(zipDaLojaA).toBeTruthy();
+    const enviado = await lojaA.post('/importacoes').attach('arquivo', zipDaLojaA!, 'backup-loja-a.zip').expect(202);
+    const analisado = await aguardarImportacao(lojaA, enviado.body.data.id, ['PRONTO', 'FALHOU']);
+    expect(analisado).toMatchObject({ status: 'PRONTO', origem: 'BACKUP_ATRATIVA' });
+    await lojaA.post(`/importacoes/${analisado.id}/confirmar`).send({ confirmacao: 'SUBSTITUIR' }).expect(202);
+    const final = await aguardarImportacao(lojaA, analisado.id, ['CONCLUIDO', 'FALHOU']);
+    expect(final.status).toBe('CONCLUIDO');
+    expect(final.resultado.usuariosCriados).toHaveLength(0);
+    expect((await lojaA.get(`/produtos?busca=${marca}`).expect(200)).body.meta.total).toBe(1);
+    expect((await lojaA.get(`/clientes?busca=SOMENTE A ${marca}`).expect(200)).body.meta.total).toBe(1);
+    expect((await lojaA.get('/vendas').expect(200)).body.meta.total).toBe(1);
+    await lojaA.post('/clientes').send({ nome: `DEPOIS DA RESTAURACAO ${marca}` }).expect(201);
+
+    const historico = await lojaA.get('/backups').expect(200);
+    const restauravel = historico.body.data.find((b: { disponivel: boolean }) => b.disponivel);
+    const preparado = await lojaA.post(`/backups/${restauravel.id}/restaurar`).expect(202);
+    const pronto = await aguardarImportacao(lojaA, preparado.body.data.id, ['PRONTO', 'FALHOU']);
+    expect(pronto.status).toBe('PRONTO');
+    await lojaA.post(`/importacoes/${pronto.id}/cancelar`).expect(200);
+    await lojaB.post(`/backups/${restauravel.id}/restaurar`).expect(404);
+
+    const auditoria = await lojaA.get('/auditoria?acao=backup.&limit=100').expect(200);
+    expect(auditoria.body.data.map((r: { acao: string }) => r.acao)).toContain('backup.restaurado');
+  });
+
+  it('gera o backup global apenas para o superadministrador, com todos os bancos', { timeout: 120_000 }, async () => {
+    const pedido = await dono.post('/plataforma/backups').expect(202);
+    const pronto = await aguardarBackup(dono, '/plataforma/backups', pedido.body.data.id);
+    expect(pronto.status).toBe('CONCLUIDO');
+    const download = await dono.get(`/plataforma/backups/${pedido.body.data.id}/download`).buffer(true).parse(binario).expect(200);
+    const entradas = lerZip(download.body as Buffer);
+    const arquivos = [...entradas.keys()];
+    const completo = entradas.get('sql/plataforma-completa.sql')?.conteudo.toString('utf8');
+    if (completo) {
+      expect(completo).toContain(`CREATE DATABASE /*!32312 IF NOT EXISTS*/ \`${BANCO_PLATAFORMA}\``);
+      expect(completo.match(new RegExp(`CREATE DATABASE .*\`${PREFIXO_EMPRESA}`, 'g'))).toHaveLength(2);
+      expect(completo).not.toMatch(/INSERT INTO `plataforma_refresh_tokens`/);
+    } else {
+      expect(arquivos).toContain(`sql/${BANCO_PLATAFORMA}.sql`);
+      expect(arquivos.filter((a) => a.startsWith(`sql/${PREFIXO_EMPRESA}`))).toHaveLength(2);
+      const central = entradas.get(`sql/${BANCO_PLATAFORMA}.sql`)!.conteudo.toString('utf8');
+      expect(central).toContain('CREATE TABLE `plataforma_empresas`');
+      expect(central).not.toMatch(/INSERT INTO `plataforma_refresh_tokens`/);
+    }
+    expect((await lojaA.get('/backups').expect(200)).body.data.every((b: { tipo: string }) => b.tipo === 'EMPRESA')).toBe(true);
+
+    const auditoria = await dono.get('/plataforma/auditoria?acao=backup.&limit=100').expect(200);
+    const acoes = auditoria.body.data.map((r: { acao: string }) => r.acao);
+    expect(acoes).toEqual(expect.arrayContaining(['backup.gerado', 'backup.baixado']));
+  });
+
+  it('vende no carnê, gera os dados de impressão e recebe a parcela em Pix somando no caixa', { timeout: 120_000 }, async () => {
+    await lojaA.patch('/carnes/configuracao').send({ jurosDia: 0.35, carenciaDias: 5 }).expect(200);
+    expect((await lojaA.get('/carnes/configuracao').expect(200)).body.data).toEqual({ jurosDia: 0.35, carenciaDias: 5 });
+    const cliente = await lojaA.post('/clientes').send({ nome: `CLIENTE CARNE ${marca}`, limiteCarne: 1000 }).expect(201);
+    const produtos = await lojaA.get(`/produtos?busca=${marca}`).expect(200);
+    const idProduto = produtos.body.data[0].id;
+    await lojaA.post('/estoque/entradas').send({ itens: [{ idProduto, quantidade: 2, valorCompra: 20 }] }).expect(201);
+    const venda = await lojaA
+      .post('/vendas')
+      .send({ idCliente: cliente.body.data.id, itens: [{ idProduto, quantidade: 1 }], pagamentos: [{ forma: 'CARNE', valor: 55 }], parcelasCarne: 2 })
+      .expect(201);
+    const controle: string = venda.body.data.controle;
+
+    const impressao = await lojaA.get(`/carnes/venda/${controle}/impressao`).expect(200);
+    expect(impressao.body.data.parcelas).toHaveLength(2);
+    expect(impressao.body.data.cliente.nome).toBe(`CLIENTE CARNE ${marca}`);
+    expect(impressao.body.data.config.jurosDia).toBe(0.35);
+    await lojaB.get(`/carnes/venda/${controle}/impressao`).expect(404);
+
+    await lojaA.post('/caixa/abrir').send({ valorAbertura: 10 }).expect(201);
+    const antes = (await lojaA.get('/caixa/atual').expect(200)).body.data.resumo;
+    const parcela = impressao.body.data.parcelas[0];
+    await lojaA
+      .post('/carnes/baixa')
+      .send({ parcelas: [{ codigo: parcela.codigo }], pagamentos: [{ forma: 'PIX', valor: parcela.valorParcela - 1 }] })
+      .expect(400);
+    const baixa = await lojaA
+      .post('/carnes/baixa')
+      .send({
+        parcelas: [{ codigo: parcela.codigo }],
+        pagamentos: [
+          { forma: 'PIX', valor: parcela.valorParcela - 5 },
+          { forma: 'DINHEIRO', valor: 5 },
+        ],
+        valorRecebidoDinheiro: 10,
+      })
+      .expect(200);
+    expect(baixa.body.data).toMatchObject({ troco: 5, pagamentos: { pix: parcela.valorParcela - 5, dinheiro: 5, cartao: 0 } });
+
+    const depois = (await lojaA.get('/caixa/atual').expect(200)).body.data.resumo;
+    expect(depois.entradas.pix).toBeCloseTo(antes.entradas.pix + parcela.valorParcela - 5, 2);
+    expect(depois.dinheiroEsperadoNaGaveta).toBeCloseTo(antes.dinheiroEsperadoNaGaveta + 5, 2);
+    expect(depois.recebimentosCarne.pix).toBeCloseTo(antes.recebimentosCarne.pix + parcela.valorParcela - 5, 2);
+    const fechado = await lojaA.post('/caixa/fechar').send({}).expect(200);
+    expect(fechado.body.data.resumo.entradas.pix).toBeCloseTo(depois.entradas.pix, 2);
+
+    const reimpressao = await lojaA.get(`/carnes/venda/${controle}/impressao`).expect(200);
+    expect(reimpressao.body.data.parcelas[0]).toMatchObject({ situacao: 'PAGA', valorPago: parcela.valorParcela });
   });
 });

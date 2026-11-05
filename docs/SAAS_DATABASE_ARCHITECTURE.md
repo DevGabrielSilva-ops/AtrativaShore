@@ -200,7 +200,17 @@ Depois: entrar com o e-mail do superadministrador (vai para `/plataforma`), gera
 
 Migrations futuras do banco das empresas: `npm run empresas:migrar` aplica em todas.
 
+### 6.1 Backups
+
+- Backup da empresa: depois de fechar o caixa (ou em Configurações › Cópias de segurança), quem tem `backup.gerar` gera um ZIP com o dump MySQL (`mysqldump`) do banco da empresa e os registros dela no banco central, sem senhas nem tokens. Detalhes do formato na seção "Backup dos dados" do README da API.
+- Backup global: em Plataforma › Backups, o superadministrador gera o dump de todos os bancos com o `mysqldump` (ou o exportador interno, se ele não estiver instalado).
+- Os dois tipos ficam em `plataforma_backups`, separados por `tipo`, e nunca aparecem um na lista do outro.
+- Carregar backup: em Configurações › Carregar backup, quem tem `backup.restaurar` envia um ZIP do Atrativa Shore ou o dump `.sql` do sistema anterior. O sistema analisa, pede confirmação, gera um backup de segurança e substitui os dados da empresa. É também o caminho para migrar cada loja antiga para a nova plataforma: ative a empresa por código e carregue o dump dela. Os usuários antigos viram funcionários com senha temporária.
+- Depois de atualizar, rode `npm run plataforma:migrar` para criar `plataforma_backups` e `plataforma_importacoes`.
+
 ## 7. Onde está cada parte no código
+
+- Backups e importação: `src/backup/` (API: `leitor-sql.ts`, `importador.ts`, `importacoes.service.ts`) e `src/components/Backup.tsx`, `src/components/CarregarBackup.tsx`, `src/hooks/useGeracaoBackup.ts` (frontend).
 
 | Parte | Backend | Frontend |
 |---|---|---|

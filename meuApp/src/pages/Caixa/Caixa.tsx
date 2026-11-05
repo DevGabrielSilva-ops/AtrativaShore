@@ -1,5 +1,13 @@
-import { useState, type FormEvent } from 'react';
-import { IoLockClosedOutline, IoLockOpenOutline, IoPrintOutline } from 'react-icons/io5';
+import { useState, type FormEvent, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  IoArchiveOutline,
+  IoCloudDownloadOutline,
+  IoLockClosedOutline,
+  IoLockOpenOutline,
+  IoPrintOutline,
+} from 'react-icons/io5';
+import { SecaoGeracaoBackup } from '../../components/Backup';
 import { Button } from '../../components/ui/Button';
 import { DataTable } from '../../components/ui/DataTable';
 import { Badge, EstadoErro } from '../../components/ui/Estados';
@@ -8,16 +16,19 @@ import { Indicador, PageHeader, Painel } from '../../components/ui/Layout';
 import { Modal } from '../../components/ui/Modal';
 import { Pagination } from '../../components/ui/Pagination';
 import { Skeleton } from '../../components/ui/Spinner';
+import { useAuth } from '../../contexts/AuthContext';
 import { useFeedback } from '../../contexts/FeedbackContext';
+import { useGeracaoBackup } from '../../hooks/useGeracaoBackup';
 import { useAcao, useRequisicao } from '../../hooks/useRequisicao';
 import { mensagemErro } from '../../services/api';
-import { caixaService } from '../../services/servicos';
+import { backupService, caixaService } from '../../services/servicos';
 import type { Caixa as TipoCaixa, CaixaComResumo, MovimentoCaixa, ResumoCaixa } from '../../types/api';
 import { imprimir } from '../../utils/exportar';
 import { formatarData, formatarMoeda, lerNumero } from '../../utils/formatar';
 
 export default function Caixa() {
   const { notificar } = useFeedback();
+  const { pode } = useAuth();
   const atual = useRequisicao(() => caixaService.atual(), []);
   const [paginaHistorico, setPaginaHistorico] = useState(1);
   const historico = useRequisicao(() => caixaService.historico({ page: paginaHistorico, limit: 10 }), [paginaHistorico]);
@@ -33,11 +44,19 @@ export default function Caixa() {
         titulo="Caixa"
         descricao="Abertura, acompanhamento e fechamento do caixa deste terminal."
         acoes={
-          caixa ? (
-            <Button variante="perigo" icone={<IoLockClosedOutline />} onClick={() => setFechando(true)}>
-              Fechar caixa
-            </Button>
-          ) : null
+          <>
+            {pode('backup.gerar') ? (
+              <Link to="/configuracoes#copias-de-seguranca" className="btn btn-secundario btn-md">
+                <IoArchiveOutline aria-hidden />
+                <span>Cópias de segurança</span>
+              </Link>
+            ) : null}
+            {caixa ? (
+              <Button variante="perigo" icone={<IoLockClosedOutline />} onClick={() => setFechando(true)}>
+                Fechar caixa
+              </Button>
+            ) : null}
+          </>
         }
       />
       <div className="pilha">
@@ -110,32 +129,7 @@ export default function Caixa() {
         />
       ) : null}
 
-      {fechado ? (
-        <Modal
-          aberto
-          titulo="Caixa fechado"
-          descricao={`Fechado em ${formatarData(fechado.fechamento.data)} às ${fechado.fechamento.hora}`}
-          aoFechar={() => setFechado(null)}
-          tamanho="lg"
-          rodape={
-            <>
-              <Button variante="secundario" icone={<IoPrintOutline />} onClick={imprimir}>
-                Imprimir / salvar PDF
-              </Button>
-              <Button onClick={() => setFechado(null)}>Concluir</Button>
-            </>
-          }
-        >
-          <div className="area-impressao pilha">
-            <ResumoCaixaPainel resumo={fechado.resumo} valorAbertura={fechado.abertura.valor} compacto />
-            {fechado.valorProximoDia != null ? (
-              <p className="pequeno">
-                Valor deixado para o próximo dia: <strong className="num">{formatarMoeda(fechado.valorProximoDia)}</strong>
-              </p>
-            ) : null}
-          </div>
-        </Modal>
-      ) : null}
+      {fechado ? <CaixaFechado fechado={fechado} aoFechar={() => setFechado(null)} /> : null}
 
       {vendo ? <DetalheCaixa id={vendo} aoFechar={() => setVendo(null)} /> : null}
     </>
@@ -143,6 +137,19 @@ export default function Caixa() {
 }
 
 function ResumoCaixaPainel({ resumo, valorAbertura, compacto = false }: { resumo: ResumoCaixa; valorAbertura: number | null; compacto?: boolean }) {
+  const recebimentos = {
+    ...resumo.recebimentosCarne,
+    dinheiro: resumo.recebimentosCarne.dinheiro ?? resumo.recebimentosCarne.total,
+    pix: resumo.recebimentosCarne.pix ?? 0,
+    cartao: resumo.recebimentosCarne.cartao ?? 0,
+  };
+  const entradas = resumo.entradas ?? {
+    dinheiro: resumo.vendas.dinheiro + recebimentos.dinheiro,
+    pix: resumo.vendas.pix,
+    cartao: resumo.vendas.cartao,
+    outros: resumo.vendas.outros,
+    total: resumo.totalRecebido,
+  };
   return (
     <div className="pilha">
       <div className="indicadores">
@@ -156,12 +163,11 @@ function ResumoCaixaPainel({ resumo, valorAbertura, compacto = false }: { resumo
           <dl className="cupom-linhas sem-borda">
             {(
               [
-                ['Dinheiro', resumo.vendas.dinheiro],
-                ['Pix', resumo.vendas.pix],
-                ['Cartão', resumo.vendas.cartao],
+                ['Dinheiro', entradas.dinheiro],
+                ['Pix', entradas.pix],
+                ['Cartão', entradas.cartao],
                 ['Carnê (vendas a prazo)', resumo.vendas.carne],
-                ['Cheque/ticket', resumo.vendas.outros],
-                [`Recebimentos de carnê (${resumo.recebimentosCarne.quantidade})`, resumo.recebimentosCarne.total],
+                ['Cheque/ticket', entradas.outros],
                 ['Descontos concedidos', resumo.descontos],
               ] as const
             ).map(([nome, valor]) => (
@@ -171,7 +177,22 @@ function ResumoCaixaPainel({ resumo, valorAbertura, compacto = false }: { resumo
               </div>
             ))}
           </dl>
-          <p className="pequeno muted">O sistema não registra a forma de pagamento dos recebimentos de carnê; eles entram como dinheiro.</p>
+          {recebimentos.quantidade > 0 ? (
+            <p className="pequeno muted num">
+              Inclui {recebimentos.quantidade} recebimento{recebimentos.quantidade > 1 ? 's' : ''} de carnê ({formatarMoeda(recebimentos.total)}):{' '}
+              {(
+                [
+                  ['dinheiro', recebimentos.dinheiro],
+                  ['Pix', recebimentos.pix],
+                  ['cartão', recebimentos.cartao],
+                ] as const
+              )
+                .filter(([, valor]) => (valor ?? 0) > 0)
+                .map(([nome, valor]) => `${nome} ${formatarMoeda(valor)}`)
+                .join(' · ')}
+              .
+            </p>
+          ) : null}
         </Painel>
         {!compacto ? (
           <Painel titulo="Movimentações" descricao={`${formatarData(resumo.periodo.inicio)} a ${formatarData(resumo.periodo.fim)}`} semEspaco>
@@ -191,6 +212,103 @@ function ResumoCaixaPainel({ resumo, valorAbertura, compacto = false }: { resumo
         ) : null}
       </div>
     </div>
+  );
+}
+
+function CaixaFechado({
+  fechado,
+  aoFechar,
+}: {
+  fechado: CaixaComResumo & { valorProximoDia: number | null };
+  aoFechar: () => void;
+}) {
+  const { pode } = useAuth();
+  const { notificar } = useFeedback();
+  const geracao = useGeracaoBackup(backupService);
+  const podeBackup = pode('backup.gerar');
+
+  const fechar = () => {
+    if (geracao.etapa === 'gerando') notificar('O backup continua sendo gerado. Baixe-o em Configurações quando ficar pronto.', 'info');
+    aoFechar();
+  };
+
+  const baixar = async () => {
+    if (await geracao.baixar()) notificar('Download do backup iniciado.');
+  };
+
+  let acoesBackup: ReactNode = <Button onClick={fechar}>Concluir</Button>;
+  if (podeBackup) {
+    if (geracao.etapa === 'inicial') {
+      acoesBackup = (
+        <>
+          <Button variante="fantasma" onClick={fechar}>
+            Fazer isso depois
+          </Button>
+          <Button icone={<IoArchiveOutline />} carregando={geracao.iniciando} onClick={() => void geracao.gerar()}>
+            Gerar backup
+          </Button>
+        </>
+      );
+    } else if (geracao.etapa === 'gerando') {
+      acoesBackup = <Button onClick={fechar}>Continuar usando o sistema</Button>;
+    } else if (geracao.etapa === 'pronto') {
+      acoesBackup = (
+        <>
+          <Button variante="fantasma" onClick={fechar}>
+            Concluir
+          </Button>
+          <Button icone={<IoCloudDownloadOutline />} carregando={geracao.baixando} onClick={() => void baixar()}>
+            Baixar backup
+          </Button>
+        </>
+      );
+    } else {
+      acoesBackup = (
+        <>
+          <Button variante="fantasma" onClick={fechar}>
+            Fechar
+          </Button>
+          <Button icone={<IoArchiveOutline />} carregando={geracao.iniciando} onClick={() => void geracao.gerar()}>
+            Tentar novamente
+          </Button>
+        </>
+      );
+    }
+  }
+
+  return (
+    <Modal
+      aberto
+      titulo="Caixa fechado com sucesso!"
+      descricao={`Seu fechamento foi registrado em ${formatarData(fechado.fechamento.data)} às ${fechado.fechamento.hora}.`}
+      aoFechar={fechar}
+      tamanho="lg"
+      rodape={
+        <>
+          <Button variante="secundario" icone={<IoPrintOutline />} onClick={imprimir}>
+            Imprimir / salvar PDF
+          </Button>
+          {acoesBackup}
+        </>
+      }
+    >
+      <div className="pilha">
+        {podeBackup ? (
+          <SecaoGeracaoBackup
+            geracao={geracao}
+            convite="Deseja gerar uma cópia de segurança dos dados da empresa? O arquivo ZIP é baixado direto para este computador."
+          />
+        ) : null}
+        <div className="area-impressao pilha">
+          <ResumoCaixaPainel resumo={fechado.resumo} valorAbertura={fechado.abertura.valor} compacto />
+          {fechado.valorProximoDia != null ? (
+            <p className="pequeno">
+              Valor deixado para o próximo dia: <strong className="num">{formatarMoeda(fechado.valorProximoDia)}</strong>
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </Modal>
   );
 }
 

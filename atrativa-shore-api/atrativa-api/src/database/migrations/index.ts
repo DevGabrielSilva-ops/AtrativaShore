@@ -2,10 +2,12 @@ import { ConverterTabelasInnodb1762300000001 } from './1762300000001-ConverterTa
 import { CriarApiCredencial1762300000002 } from './1762300000002-CriarApiCredencial.js';
 import { AdicionarVrPix1762300000003 } from './1762300000003-AdicionarVrPix.js';
 import { AdicionarLimiteCarne1762300000004 } from './1762300000004-AdicionarLimiteCarne.js';
+import { CriarTabelasCarne1762300000005 } from './1762300000005-CriarTabelasCarne.js';
 
 export const MIGRATIONS = [
   ConverterTabelasInnodb1762300000001,
   CriarApiCredencial1762300000002,
   AdicionarVrPix1762300000003,
   AdicionarLimiteCarne1762300000004,
+  CriarTabelasCarne1762300000005,
 ];

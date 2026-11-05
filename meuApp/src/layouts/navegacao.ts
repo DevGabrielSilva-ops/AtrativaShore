@@ -1,5 +1,6 @@
 import type { IconType } from 'react-icons';
 import {
+  IoArchiveOutline,
   IoBarChartOutline,
   IoBusinessOutline,
   IoCartOutline,
@@ -13,6 +14,7 @@ import {
   IoPeopleCircleOutline,
   IoPeopleOutline,
   IoPersonCircleOutline,
+  IoPricetagOutline,
   IoPricetagsOutline,
   IoReceiptOutline,
   IoSettingsOutline,
@@ -54,6 +56,7 @@ export const MENU: GrupoMenu[] = [
     { caminho: '/carnes', titulo: 'Carnês', icone: IoDocumentTextOutline, permissoes: ['carnes.consultar'] },
     { caminho: '/produtos', titulo: 'Produtos', icone: IoCubeOutline, permissoes: ['produtos.consultar'] },
     { caminho: '/estoque', titulo: 'Estoque', icone: IoLayersOutline, permissoes: ['estoque.consultar'] },
+    { caminho: '/etiquetas', titulo: 'Maleta de etiquetas', icone: IoPricetagOutline, permissoes: ['produtos.consultar'] },
   ]),
   grupo('Análises', [
     { caminho: '/relatorios', titulo: 'Relatórios', icone: IoBarChartOutline, permissoes: ['relatorios.vendas', 'relatorios.estoque'] },
@@ -75,6 +78,7 @@ export const MENU_PLATAFORMA: GrupoMenu[] = [
   grupo('Controle', [
     { caminho: '/plataforma/administradores', titulo: 'Administradores', icone: IoShieldCheckmarkOutline },
     { caminho: '/plataforma/auditoria', titulo: 'Auditoria', icone: IoTimeOutline },
+    { caminho: '/plataforma/backups', titulo: 'Backups', icone: IoArchiveOutline },
     { caminho: '/plataforma/perfil', titulo: 'Meu perfil', icone: IoPeopleCircleOutline },
   ]),
 ];

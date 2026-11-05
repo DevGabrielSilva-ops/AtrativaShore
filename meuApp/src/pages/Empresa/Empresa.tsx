@@ -10,7 +10,7 @@ import { useFeedback } from '../../contexts/FeedbackContext';
 import { useFormulario } from '../../hooks/useFormulario';
 import { useAcao, useRequisicao } from '../../hooks/useRequisicao';
 import { mensagemErro } from '../../services/api';
-import { empresaService } from '../../services/servicos';
+import { carneService, empresaService } from '../../services/servicos';
 import type { Empresa as TipoEmpresa } from '../../types/api';
 import { formatarDocumento, formatarTelefone, lerNumero, numeroParaCampo } from '../../utils/formatar';
 import { emailValido } from '../../utils/validar';
@@ -101,8 +101,77 @@ export default function Empresa() {
             </Painel>
           </>
         )}
+        {e ? <JurosCarne podeEditar={podeEditar} /> : null}
       </div>
     </>
+  );
+}
+
+function JurosCarne({ podeEditar }: { podeEditar: boolean }) {
+  const { notificar } = useFeedback();
+  const config = useRequisicao(() => carneService.configuracao(), []);
+  const [valores, setValores] = useState<{ jurosDia: string; carenciaDias: string } | null>(null);
+  const [falha, setFalha] = useState<string | null>(null);
+  const atual = config.dados;
+  const campos = valores ?? {
+    jurosDia: atual ? numeroParaCampo(atual.jurosDia, 3).replace(/0$/, '') : '',
+    carenciaDias: atual ? String(atual.carenciaDias) : '',
+  };
+  const mudar = (campo: keyof typeof campos, valor: string) => setValores({ ...campos, [campo]: valor });
+  const salvar = useAcao(async () => {
+    const jurosDia = lerNumero(campos.jurosDia || '0');
+    const carenciaDias = Number(campos.carenciaDias || '0');
+    if (jurosDia === null || jurosDia < 0 || jurosDia > 10) return setFalha('Juros ao dia deve ficar entre 0 e 10%.');
+    if (!Number.isInteger(carenciaDias) || carenciaDias < 0 || carenciaDias > 365) return setFalha('Carência deve ser um número de dias entre 0 e 365.');
+    setFalha(null);
+    try {
+      await carneService.salvarConfiguracao({ jurosDia, carenciaDias });
+      setValores(null);
+      config.recarregar();
+      notificar('Juros e multa do carnê atualizados.');
+    } catch (erro) {
+      setFalha(mensagemErro(erro));
+    }
+  });
+  const enviar = (evento: FormEvent) => {
+    evento.preventDefault();
+    void salvar.executar();
+  };
+  return (
+    <Painel
+      titulo="Juros e multa do carnê"
+      descricao="Impressos no carnê e calculados automaticamente ao receber uma parcela atrasada. Multa cobrada uma vez, após a carência; juros por dia desde o vencimento."
+    >
+      {config.erro ? (
+        <EstadoErro mensagem={config.erro} aoTentarNovamente={config.recarregar} />
+      ) : !atual ? (
+        <Skeleton altura={60} />
+      ) : podeEditar ? (
+        <form className="pilha" onSubmit={enviar} noValidate>
+          {falha ? (
+            <p className="aviso-faixa erro" role="alert">
+              {falha}
+            </p>
+          ) : null}
+          <div className="form-grade">
+            <Input rotulo="Juros ao dia (%)" inputMode="decimal" placeholder="0,35" value={campos.jurosDia} onChange={(ev) => mudar('jurosDia', ev.target.value)} />
+            <Input rotulo="Carência da multa (dias)" inputMode="numeric" placeholder="5" value={campos.carenciaDias} onChange={(ev) => mudar('carenciaDias', ev.target.value)} />
+          </div>
+          <div className="form-acoes">
+            <Button type="submit" carregando={salvar.executando} disabled={valores === null}>
+              Salvar juros e multa
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <Detalhes
+          itens={[
+            { rotulo: 'Juros ao dia', valor: `${atual.jurosDia.toLocaleString('pt-BR')}%` },
+            { rotulo: 'Carência da multa', valor: `${atual.carenciaDias} dia(s)` },
+          ]}
+        />
+      )}
+    </Painel>
   );
 }
 

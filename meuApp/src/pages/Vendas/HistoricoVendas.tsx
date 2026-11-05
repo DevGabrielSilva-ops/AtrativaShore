@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { IoAddCircleOutline, IoArrowUndoOutline, IoDownloadOutline, IoPrintOutline } from 'react-icons/io5';
+import { IoAddCircleOutline, IoArrowUndoOutline, IoDocumentTextOutline, IoDownloadOutline, IoPrintOutline } from 'react-icons/io5';
 import { SeletorBusca } from '../../components/SeletorBusca';
 import { Button } from '../../components/ui/Button';
 import { DataTable } from '../../components/ui/DataTable';
@@ -18,7 +18,9 @@ import { usePagina } from '../../hooks/useEstadoReiniciado';
 import { mensagemErro } from '../../services/api';
 import { clienteService, vendaService } from '../../services/servicos';
 import type { Cliente, FormaPagamento, VendaResumo } from '../../types/api';
-import { exportarCsv, imprimir } from '../../utils/exportar';
+import { exportarCsv } from '../../utils/exportar';
+import { ImprimirCarne } from '../../components/ImpressaoCarne';
+import { ReciboVenda } from '../../components/ReciboVenda';
 import { formatarData, formatarDocumento, formatarMoeda, formatarNumero } from '../../utils/formatar';
 import { FORMAS_PAGAMENTO } from '../compartilhado';
 
@@ -188,6 +190,7 @@ function DetalheVenda({ id, aoFechar, aoEstornar }: { id: number; aoFechar: () =
   const { confirmar, notificar } = useFeedback();
   const venda = useRequisicao(() => vendaService.obter(id), [id]);
   const v = venda.dados;
+  const [impressao, setImpressao] = useState<'recibo' | 'carne' | null>(null);
 
   const estornar = useAcao(async () => {
     if (!v) return;
@@ -224,8 +227,13 @@ function DetalheVenda({ id, aoFechar, aoEstornar }: { id: number; aoFechar: () =
                 Estornar venda
               </Button>
             ) : null}
-            <Button variante="secundario" icone={<IoPrintOutline />} onClick={imprimir}>
-              Imprimir
+            {v.parcelasCarne.length ? (
+              <Button variante="secundario" icone={<IoDocumentTextOutline />} onClick={() => setImpressao('carne')}>
+                Reimprimir carnê
+              </Button>
+            ) : null}
+            <Button variante="secundario" icone={<IoPrintOutline />} onClick={() => setImpressao('recibo')}>
+              Imprimir recibo
             </Button>
           </>
         ) : undefined
@@ -315,6 +323,8 @@ function DetalheVenda({ id, aoFechar, aoEstornar }: { id: number; aoFechar: () =
           ) : null}
         </div>
       )}
+      {v && impressao === 'recibo' ? <ReciboVenda venda={v} aoFechar={() => setImpressao(null)} /> : null}
+      {v && impressao === 'carne' ? <ImprimirCarne controle={v.controle} aoFechar={() => setImpressao(null)} /> : null}
     </Modal>
   );
 }

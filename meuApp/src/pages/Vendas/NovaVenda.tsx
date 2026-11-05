@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  IoDocumentTextOutline,
   IoAdd,
   IoCheckmarkCircle,
   IoClose,
@@ -11,7 +12,9 @@ import {
   IoTrashOutline,
   IoWarningOutline,
 } from 'react-icons/io5';
+import { ImprimirCarne } from '../../components/ImpressaoCarne';
 import { OpcaoProduto } from '../../components/Produto';
+import { ReciboVenda } from '../../components/ReciboVenda';
 import { SeletorBusca } from '../../components/SeletorBusca';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Estados';
@@ -23,7 +26,6 @@ import { useAcao, useRequisicao } from '../../hooks/useRequisicao';
 import { ApiError, mensagemErro } from '../../services/api';
 import { caixaService, clienteService, produtoService, vendaService } from '../../services/servicos';
 import type { Cliente, FormaPagamento, Produto, RegistrarVendaEntrada, VendaDetalhe } from '../../types/api';
-import { imprimir } from '../../utils/exportar';
 import {
   formatarData,
   formatarDocumento,
@@ -190,7 +192,15 @@ export default function NovaVenda() {
   };
 
   const buscarProdutos = async (termo: string) => (await produtoService.listar({ busca: termo, limit: 8 })).data;
-  const buscarCodigo = (codigo: string) => produtoService.porCodigo(codigo).catch(() => null);
+  const buscarCodigo = async (codigo: string): Promise<Produto | null> => {
+    const naoEncontrado = (falha: unknown) => {
+      if (falha instanceof ApiError && falha.status === 404) return null;
+      throw falha;
+    };
+    const porCodigo = await produtoService.porCodigo(codigo).catch(naoEncontrado);
+    if (porCodigo || codigo.length > 6) return porCodigo;
+    return produtoService.obter(Number(codigo)).catch(naoEncontrado);
+  };
 
   return (
     <div className="pdv">
@@ -604,6 +614,8 @@ function TabelaLinhas({
 }
 
 function VendaConcluida({ venda, aoNovaVenda }: { venda: VendaDetalhe; aoNovaVenda: () => void }) {
+  const [carne, setCarne] = useState(false);
+  const [recibo, setRecibo] = useState(false);
   const formas = useMemo(
     () =>
       (
@@ -623,9 +635,14 @@ function VendaConcluida({ venda, aoNovaVenda }: { venda: VendaDetalhe; aoNovaVen
       aoFechar={aoNovaVenda}
       rodape={
         <>
-          <Button variante="secundario" icone={<IoPrintOutline />} onClick={imprimir}>
-            Imprimir comprovante
+          <Button variante="secundario" icone={<IoPrintOutline />} onClick={() => setRecibo(true)}>
+            Imprimir recibo
           </Button>
+          {venda.parcelasCarne.length ? (
+            <Button variante="secundario" icone={<IoDocumentTextOutline />} onClick={() => setCarne(true)}>
+              Imprimir carnê
+            </Button>
+          ) : null}
           <Button onClick={aoNovaVenda} autoFocus>
             Nova venda
           </Button>
@@ -690,6 +707,8 @@ function VendaConcluida({ venda, aoNovaVenda }: { venda: VendaDetalhe; aoNovaVen
           </>
         ) : null}
       </div>
+      {carne ? <ImprimirCarne controle={venda.controle} aoFechar={() => setCarne(false)} /> : null}
+      {recibo ? <ReciboVenda venda={venda} aoFechar={() => setRecibo(false)} /> : null}
     </Modal>
   );
 }

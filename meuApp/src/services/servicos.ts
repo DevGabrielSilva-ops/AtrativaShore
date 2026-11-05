@@ -1,4 +1,13 @@
 import type {
+  ModelosEtiqueta,
+  ProdutoEtiqueta,
+  Backup,
+  ConfigCarne,
+  FormaRecebimento,
+  ImpressaoCarne,
+  SimulacaoBaixa,
+  Importacao,
+  SenhaImportada,
   BaixasCarne,
   CaixaComResumo,
   Caixa,
@@ -55,7 +64,7 @@ import type {
   TipoCodigo,
   ValidacaoCodigo,
 } from '../types/api';
-import { api } from './api';
+import { api, baixarArquivo, enviarArquivo } from './api';
 
 export interface Pagina {
   page?: number;
@@ -187,6 +196,12 @@ export interface FiltroProdutos extends Pagina {
   somenteDisponiveis?: boolean;
 }
 
+export const etiquetaService = {
+  modelos: () => api.get<ModelosEtiqueta>('/etiquetas/modelos'),
+  produtos: (ids: number[]) =>
+    api.get<{ produtos: ProdutoEtiqueta[]; naoEncontrados: number[] }>('/etiquetas/produtos', { ids: ids.join(',') }),
+};
+
 export const produtoService = {
   listar: (filtro: FiltroProdutos = {}) => api.get<Paginado<Produto>>('/produtos', { ...filtro }),
   obter: (id: number) => api.get<Produto>(`/produtos/${id}`),
@@ -239,8 +254,16 @@ export const carneService = {
   listar: (filtro: Pagina & FiltroPeriodo & { idCliente?: number; situacao?: 'ABERTA' | 'PAGA' | 'TODAS'; vencidas?: boolean } = {}) =>
     api.get<Paginado<ParcelaCarne>>('/carnes', { ...filtro }),
   obter: (codigo: string) => api.get<ParcelaCarne>(`/carnes/${codigo}`),
-  baixar: (dados: { parcelas: Array<{ codigo: string; juros?: number; desconto?: number }>; dataPagamento?: string }) =>
-    api.post<ResultadoBaixa>('/carnes/baixa', dados),
+  baixar: (dados: {
+    parcelas: Array<{ codigo: string; desconto?: number }>;
+    dataPagamento?: string;
+    pagamentos?: Array<{ forma: FormaRecebimento; valor: number }>;
+    valorRecebidoDinheiro?: number;
+  }) => api.post<ResultadoBaixa>('/carnes/baixa', dados),
+  simular: (codigos: string[], dataPagamento?: string) => api.post<SimulacaoBaixa>('/carnes/simulacao', { codigos, dataPagamento }),
+  configuracao: () => api.get<ConfigCarne>('/carnes/configuracao'),
+  salvarConfiguracao: (config: ConfigCarne) => api.patch<ConfigCarne>('/carnes/configuracao', config),
+  impressao: (controle: string) => api.get<ImpressaoCarne>(`/carnes/venda/${controle}/impressao`),
 };
 
 export const caixaService = {
@@ -273,3 +296,31 @@ export const relatorioService = {
   movimentacoes: (filtro: FiltroMovimentacoes = {}) =>
     api.get<Paginado<Movimentacao>>('/relatorios/movimentacoes', { ...filtro }),
 };
+
+function servicoDeBackup(base: string) {
+  return {
+    gerar: () => api.post<Backup>(base),
+    listar: (filtro: Pagina = {}) => api.get<Paginado<Backup>>(base, { ...filtro }),
+    obter: (id: number) => api.get<Backup>(`${base}/${id}`),
+    baixar: (backup: Pick<Backup, 'id' | 'nomeArquivo'>) => baixarArquivo(`${base}/${backup.id}/download`, backup.nomeArquivo),
+  };
+}
+
+export type ServicoBackup = ReturnType<typeof servicoDeBackup>;
+
+export const backupService = {
+  ...servicoDeBackup('/backups'),
+  restaurar: (id: number) => api.post<Importacao>(`/backups/${id}/restaurar`),
+};
+
+export const importacaoService = {
+  enviar: (arquivo: File, aoProgresso?: (percentual: number) => void) =>
+    enviarArquivo<Importacao>('/importacoes', 'arquivo', arquivo, aoProgresso),
+  listar: (filtro: Pagina = {}) => api.get<Paginado<Importacao>>('/importacoes', { ...filtro }),
+  obter: (id: number) => api.get<Importacao>(`/importacoes/${id}`),
+  confirmar: (id: number) => api.post<Importacao>(`/importacoes/${id}/confirmar`, { confirmacao: 'SUBSTITUIR' }),
+  cancelar: (id: number) => api.post<Importacao>(`/importacoes/${id}/cancelar`),
+  senhas: (id: number) => api.get<SenhaImportada[]>(`/importacoes/${id}/senhas`),
+};
+
+export const backupPlataformaService = servicoDeBackup('/plataforma/backups');

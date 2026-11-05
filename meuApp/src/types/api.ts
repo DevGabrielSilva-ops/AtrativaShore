@@ -46,6 +46,8 @@ export type Permissao =
   | 'funcionarios.consultar'
   | 'funcionarios.gerenciar'
   | 'empresa.configurar'
+  | 'backup.gerar'
+  | 'backup.restaurar'
   | 'auditoria.consultar';
 
 export interface UsuarioAutenticado {
@@ -221,6 +223,7 @@ export interface EstadoBancoEmpresa {
     tabelasAindaMyisam: string[];
     apiCredencial: boolean;
     colunaVrPix: boolean;
+    tabelasCarne?: boolean;
     colunaLimiteCarne: boolean;
   };
 }
@@ -446,12 +449,51 @@ export interface ParcelaCarne {
   valorPago: number | null;
   juros: number | null;
   desconto: number | null;
+  encargos: Encargos | null;
 }
+
+export interface Encargos {
+  diasAtraso: number;
+  juros: number;
+  total: number;
+}
+
+export interface ConfigCarne {
+  jurosDia: number;
+  carenciaDias: number;
+}
+
+export type FormaRecebimento = 'DINHEIRO' | 'PIX' | 'CARTAO';
 
 export interface ResultadoBaixa {
   controleRecebimento: string;
   dataPagamento: string;
   valorTotal: number;
+  pagamentos: { dinheiro: number; pix: number; cartao: number };
+  troco: number;
+  parcelas: ParcelaCarne[];
+}
+
+export interface SimulacaoBaixa {
+  dataPagamento: string;
+  config: ConfigCarne;
+  parcelas: Array<{ codigo: string; numeroParcela: string; vencimento: string | null; valorParcela: number } & Encargos>;
+  total: number;
+}
+
+export interface ImpressaoCarne {
+  empresa: {
+    nome: string | null;
+    cnpj: string | null;
+    endereco: string | null;
+    bairro: string | null;
+    cidade: string | null;
+    uf: string | null;
+    telefone: string | null;
+  };
+  config: ConfigCarne;
+  venda: { id: number | null; controle: string; data: string | null; valorTotal: number | null; valorParcelado: number | null };
+  cliente: { id: number; nome: string | null; documento: string | null } | null;
   parcelas: ParcelaCarne[];
 }
 
@@ -479,7 +521,8 @@ export interface ResumoCaixa {
   quantidadeVendas: number;
   vendas: { dinheiro: number; pix: number; cartao: number; carne: number; outros: number; total: number };
   descontos: number;
-  recebimentosCarne: { quantidade: number; total: number };
+  recebimentosCarne: { quantidade: number; total: number; dinheiro: number; pix: number; cartao: number };
+  entradas: { dinheiro: number; pix: number; cartao: number; outros: number; total: number };
   totalRecebido: number;
   dinheiroEsperadoNaGaveta: number;
   movimentos: MovimentoCaixa[];
@@ -619,4 +662,134 @@ export interface Saude {
   status: string;
   banco: string;
   plataformaMigrada: boolean;
+}
+
+export type StatusBackup = 'PROCESSANDO' | 'CONCLUIDO' | 'FALHOU' | 'EXPIRADO';
+
+export interface Backup {
+  id: number;
+  tipo: 'EMPRESA' | 'PLATAFORMA';
+  status: StatusBackup;
+  progresso: number;
+  etapa: string | null;
+  nomeArquivo: string;
+  tamanho: number | null;
+  sha256: string | null;
+  registros: number | null;
+  erro: string | null;
+  criadoEm: string;
+  concluidoEm: string | null;
+  expiraEm: string | null;
+  downloads: number;
+  disponivel: boolean;
+  usuario: { id: number; nome: string } | null;
+}
+
+export type StatusImportacao = 'ANALISANDO' | 'PRONTO' | 'PROCESSANDO' | 'CONCLUIDO' | 'FALHOU' | 'CANCELADO' | 'EXPIRADO';
+
+export interface TabelaImportacao {
+  tabela: string;
+  registros: number;
+  acao: 'SUBSTITUIR' | 'IGNORAR';
+  motivo: string | null;
+  colunasIgnoradas: string[];
+  colunasSemValor: string[];
+  transacional: boolean;
+}
+
+export interface AnaliseImportacao {
+  origem: 'BACKUP_ATRATIVA' | 'DUMP_SQL';
+  codificacao: 'utf8' | 'latin1';
+  metadados: { formato: string; versaoFormato: number; geradoEm: string | null; empresa: { id: number; nome: string } | null } | null;
+  registros: number;
+  tabelas: TabelaImportacao[];
+  usuariosParaCriar: Array<{ id: number; login: string | null; papel: Papel }>;
+  naoTransacionais: string[];
+  avisos: string[];
+}
+
+export interface ResultadoImportacao {
+  registros: number;
+  tabelas: Array<{ tabela: string; registros: number }>;
+  usuariosCriados: Array<{ id: number; nome: string; login: string; papel: Papel; status: string; idLogin: number }>;
+  loginsReligados: number;
+}
+
+export interface Importacao {
+  id: number;
+  status: StatusImportacao;
+  origem: 'BACKUP_ATRATIVA' | 'DUMP_SQL' | null;
+  nomeArquivo: string;
+  tamanho: number | null;
+  progresso: number;
+  etapa: string | null;
+  erro: string | null;
+  analise: AnaliseImportacao | null;
+  resultado: ResultadoImportacao | null;
+  idBackupOrigem: number | null;
+  idBackupSeguranca: number | null;
+  criadoEm: string;
+  confirmadoEm: string | null;
+  concluidoEm: string | null;
+  senhasDisponiveis: boolean;
+  usuario: { id: number; nome: string } | null;
+}
+
+export interface SenhaImportada {
+  id: number;
+  nome: string;
+  login: string;
+  senhaTemporaria: string;
+}
+
+export type ConteudoCampoEtiqueta =
+  | 'produto'
+  | 'codigoBarras'
+  | 'precoVarejo'
+  | 'precoAtacado'
+  | 'informacoes'
+  | 'empresa'
+  | 'fornecedor'
+  | 'tipo';
+
+export interface CampoEtiqueta {
+  id: number;
+  nome: string;
+  conteudo: ConteudoCampoEtiqueta;
+  ordem: number;
+  usar: boolean;
+  topo: number;
+  esquerda: number;
+  largura: number;
+  altura: number;
+  fonte: number;
+}
+
+export interface ModeloEtiqueta {
+  id: number;
+  nome: string;
+  pagina: { largura: number; altura: number };
+  margens: { topo: number; baixo: number; esquerda: number; direita: number };
+  colunas: number;
+  linhas: number;
+  porFolha: number;
+  espacoColunas: number;
+  larguraEtiqueta: number;
+  alturaEtiqueta: number;
+  campos: CampoEtiqueta[];
+}
+
+export interface ModelosEtiqueta {
+  empresa: string | null;
+  origem: 'empresa' | 'padrao';
+  modelos: ModeloEtiqueta[];
+}
+
+export interface ProdutoEtiqueta {
+  id: number;
+  nome: string | null;
+  codigoBarras: string | null;
+  informacoes: string | null;
+  tipo: string | null;
+  fornecedor: string | null;
 }

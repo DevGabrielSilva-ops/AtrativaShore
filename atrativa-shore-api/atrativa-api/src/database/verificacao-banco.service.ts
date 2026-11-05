@@ -14,6 +14,7 @@ export interface EstadoBanco {
   credencialCriada: boolean;
   colunaPixCriada: boolean;
   colunaLimiteCarneCriada: boolean;
+  tabelasCarneCriadas: boolean;
 }
 
 const TABELAS_TRANSACIONAIS = [
@@ -65,7 +66,25 @@ export class VerificacaoBancoService implements OnApplicationBootstrap {
       colunaLimiteCarneCriada: await existe(
         "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cad_clientes' AND COLUMN_NAME = 'limite_carne'",
       ),
+      tabelasCarneCriadas:
+        (
+          (await fonte.query(
+            "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('api_recebimentos_carne', 'api_config_carne')",
+          )) as unknown[]
+        ).length === 2,
     };
+  }
+
+  async garantirTabelasCarne(): Promise<void> {
+    const fonte = fonteDaEmpresa();
+    const banco = `${String(fonte.options.database)}|carne`;
+    if (this.transacoesOk.has(banco)) return;
+    if (!(await this.verificar(fonte)).tabelasCarneCriadas) {
+      throw new ServiceUnavailableException(
+        'As tabelas de recebimento e juros do carnê ainda não foram criadas. Execute "npm run empresas:migrar".',
+      );
+    }
+    this.transacoesOk.add(banco);
   }
 
   async garantirTransacoes(): Promise<void> {
