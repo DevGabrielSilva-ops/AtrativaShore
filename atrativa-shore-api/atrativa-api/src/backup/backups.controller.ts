@@ -5,6 +5,7 @@ import type { UsuarioAutenticado } from '../auth/usuario-autenticado.js';
 import { UsuarioAtual } from '../common/decorators/usuario-atual.decorator.js';
 import { PaginacaoDto } from '../common/dto/paginacao.dto.js';
 import { BackupsService, type ArquivoParaDownload } from './backups.service.js';
+import { ImportacoesService } from './importacoes.service.js';
 
 export function arquivoZip(arquivo: ArquivoParaDownload): StreamableFile {
   const ascii = arquivo.nome.replace(/[^A-Za-z0-9._-]/g, '_');
@@ -20,7 +21,18 @@ export function arquivoZip(arquivo: ArquivoParaDownload): StreamableFile {
 @RequerPermissao('backup.gerar')
 @Controller('backups')
 export class BackupsController {
-  constructor(private readonly backups: BackupsService) {}
+  constructor(
+    private readonly backups: BackupsService,
+    private readonly importacoes: ImportacoesService,
+  ) {}
+
+  @Post(':id/restaurar')
+  @RequerPermissao('backup.restaurar')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({ summary: 'Prepara a restauração de um backup do histórico (gera a análise; nada é alterado até confirmar)' })
+  restaurar(@UsuarioAtual() usuario: UsuarioAutenticado, @Param('id', ParseIntPipe) id: number) {
+    return this.importacoes.deBackup(usuario, id);
+  }
 
   @Post()
   @HttpCode(HttpStatus.ACCEPTED)

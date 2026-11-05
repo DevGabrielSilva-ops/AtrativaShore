@@ -68,6 +68,14 @@ export interface ArquivoParaDownload {
 
 const INTERVALO_LIMPEZA_MS = 30 * 60 * 1000;
 const INTERVALO_PROGRESSO_MS = 700;
+const RETENCAO_SEGURANCA_HORAS = 168;
+
+type Exportador = (
+  zip: EscritorZip,
+  progresso: Progresso,
+  pastaTemporaria: string,
+  backup: Backup,
+) => Promise<{ registros: number; detalhes: Record<string, unknown> }>;
 const VERSAO_API = process.env.npm_package_version ?? '0.0.1';
 
 export function slugArquivo(texto: string): string {
@@ -175,22 +183,59 @@ export class BackupsService implements OnApplicationBootstrap, OnModuleDestroy {
 
   async gerarDaEmpresa(usuario: UsuarioAutenticado): Promise<BackupResposta> {
     const escopo = this.escopoDaEmpresa(usuario);
-    const empresa = usuario.empresa!;
     const emCurso = await this.emProcessamento(escopo);
     if (emCurso) return this.obter(escopo, emCurso.id);
-
+    const empresa = usuario.empresa!;
     const agora = new Date();
-    const { dia, hora } = dataLocal(agora, this.config.fusoHorario);
+    const { dia } = dataLocal(agora, this.config.fusoHorario);
     const nome = `atrativa-shore-backup-${slugArquivo(empresa.nome)}-${dia}.zip`;
     const backup = await this.criarRegistro(escopo, usuario.id, nome, `empresa-${escopo.idEmpresa}`);
-    this.agendar(backup, async (zip, progresso, pastaTemporaria) => {
+    this.agendar(backup, this.exportadorDaEmpresa(empresa, usuario, agora));
+    return this.obter(escopo, backup.id);
+  }
+
+  async gerarSegurancaDaEmpresa(
+    empresa: { id: number; nome: string; banco: string },
+    usuario: { id: number; nome: string },
+  ): Promise<Backup> {
+    const agora = new Date();
+    const { dia, hora } = dataLocal(agora, this.config.fusoHorario);
+    const nome = `atrativa-shore-backup-${slugArquivo(empresa.nome)}-${dia}-${hora}-antes-da-restauracao.zip`;
+    const backup = await this.criarRegistro({ tipo: 'EMPRESA', idEmpresa: empresa.id }, usuario.id, nome, `empresa-${empresa.id}`);
+    const retencao = Math.max(this.config.valores.backup.retencaoHoras, RETENCAO_SEGURANCA_HORAS);
+    const tarefa = this.executar(backup, this.exportadorDaEmpresa(empresa, usuario, agora), retencao);
+    this.emAndamento.add(tarefa);
+    await tarefa.finally(() => this.emAndamento.delete(tarefa));
+    const final = await this.backups.findOne({ where: { id: backup.id } });
+    if (final?.status !== 'CONCLUIDO') throw new Error(final?.erro ?? 'Falha ao gerar o backup de segurança');
+    return final;
+  }
+
+  async arquivoParaRestaurar(escopo: Escopo, id: number): Promise<{ caminho: string; nome: string; backup: Backup }> {
+    const backup = await this.buscar(escopo, id, true);
+    if (backup.status !== 'CONCLUIDO' || !this.disponivel(backup)) {
+      throw new GoneException('Este backup não está mais disponível para restauração.');
+    }
+    const caminho = this.caminhoAbsoluto(backup.caminho);
+    if (!caminho || !(await stat(caminho).catch(() => null))?.isFile()) {
+      throw new GoneException('O arquivo deste backup não está mais disponível.');
+    }
+    return { caminho, nome: backup.nomeArquivo, backup };
+  }
+
+  private exportadorDaEmpresa(
+    empresa: { id?: number; nome: string; banco: string },
+    usuario: { id: number; nome: string },
+    agora: Date,
+  ) {
+    return async (zip: EscritorZip, progresso: Progresso, pastaTemporaria: string, backup: Backup) => {
       const fonte = await this.conexoes.obter(empresa.banco);
       const resultado = await exportarEmpresa(
         fonte,
         this.plataforma,
         zip,
         {
-          idEmpresa: escopo.idEmpresa!,
+          idEmpresa: backup.idEmpresa!,
           nomeEmpresa: empresa.nome,
           banco: empresa.banco,
           geradoPor: { id: usuario.id, nome: usuario.nome },
@@ -200,13 +245,12 @@ export class BackupsService implements OnApplicationBootstrap, OnModuleDestroy {
         progresso,
         { mysqldump: this.opcoesMysqldump(), pastaTemporaria },
       );
-      if (resultado.aviso) this.logger.warn(`Backup da empresa ${escopo.idEmpresa}: ${resultado.aviso}`);
+      if (resultado.aviso) this.logger.warn(`Backup da empresa ${backup.idEmpresa}: ${resultado.aviso}`);
       return {
         registros: resultado.registros,
-        detalhes: { hora, ferramenta: resultado.ferramenta, ...(resultado.aviso ? { aviso: resultado.aviso } : {}) },
+        detalhes: { ferramenta: resultado.ferramenta, ...(resultado.aviso ? { aviso: resultado.aviso } : {}) },
       };
-    });
-    return this.obter(escopo, backup.id);
+    };
   }
 
   async gerarDaPlataforma(usuario: UsuarioAutenticado): Promise<BackupResposta> {
@@ -408,18 +452,12 @@ export class BackupsService implements OnApplicationBootstrap, OnModuleDestroy {
     );
   }
 
-  private agendar(
-    backup: Backup,
-    exportar: (zip: EscritorZip, progresso: Progresso, pastaTemporaria: string) => Promise<{ registros: number; detalhes: Record<string, unknown> }>,
-  ): void {
+  private agendar(backup: Backup, exportar: Exportador): void {
     const tarefa = this.executar(backup, exportar).finally(() => this.emAndamento.delete(tarefa));
     this.emAndamento.add(tarefa);
   }
 
-  private async executar(
-    backup: Backup,
-    exportar: (zip: EscritorZip, progresso: Progresso, pastaTemporaria: string) => Promise<{ registros: number; detalhes: Record<string, unknown> }>,
-  ): Promise<void> {
+  private async executar(backup: Backup, exportar: Exportador, retencaoHoras = this.config.valores.backup.retencaoHoras): Promise<void> {
     const final = this.caminhoAbsoluto(backup.caminho)!;
     const parcial = `${final}.parcial`;
     let ultimo = 0;
@@ -440,7 +478,7 @@ export class BackupsService implements OnApplicationBootstrap, OnModuleDestroy {
       await progresso(1, 'Preparando');
       const { registros, detalhes } = await Promise.race([
         (async () => {
-          const resultado = await exportar(zip, progresso, path.dirname(final));
+          const resultado = await exportar(zip, progresso, path.dirname(final), backup);
           await zip.finalizar();
           return resultado;
         })(),
@@ -450,7 +488,7 @@ export class BackupsService implements OnApplicationBootstrap, OnModuleDestroy {
       const { size } = await stat(final);
       const sha256 = await this.hash(final);
       const concluidoEm = new Date();
-      const expiraEm = new Date(concluidoEm.getTime() + this.config.valores.backup.retencaoHoras * 3600 * 1000);
+      const expiraEm = new Date(concluidoEm.getTime() + retencaoHoras * 3600 * 1000);
       await this.backups.update(backup.id, {
         status: 'CONCLUIDO',
         progresso: 100,

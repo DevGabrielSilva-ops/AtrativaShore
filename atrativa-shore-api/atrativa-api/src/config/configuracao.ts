@@ -33,6 +33,7 @@ export interface Configuracao {
     diretorio: string;
     retencaoHoras: number;
     mysqldump: string | null;
+    importacaoMaxMb: number;
   };
   bcryptRodadas: number;
   fusoHorario: string;
@@ -176,6 +177,7 @@ export function carregarConfiguracao(env: Ambiente = process.env): Configuracao 
       diretorio: texto(env, 'BACKUP_DIR', 'armazenamento/backups'),
       retencaoHoras: inteiro(env, 'BACKUP_RETENCAO_HORAS', 24, 1, 720),
       mysqldump: env.MYSQLDUMP_PATH?.trim() === 'desativado' ? null : env.MYSQLDUMP_PATH?.trim() || 'mysqldump',
+      importacaoMaxMb: inteiro(env, 'BACKUP_IMPORTACAO_MAX_MB', 512, 1, 4096),
     },
     bcryptRodadas: inteiro(env, 'BCRYPT_ROUNDS', 10, 8, 15),
     fusoHorario,

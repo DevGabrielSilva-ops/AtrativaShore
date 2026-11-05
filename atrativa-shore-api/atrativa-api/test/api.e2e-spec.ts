@@ -48,6 +48,7 @@ describe.skipIf(!habilitado)('Plataforma SaaS (e2e, MySQL real)', () => {
   let lojaA: ReturnType<typeof com>;
   let lojaB: ReturnType<typeof com>;
   let idEmpresaA = 0;
+  let zipDaLojaA: Buffer | null = null;
 
   beforeAll(async () => {
     const { carregarConfiguracao } = await import('../src/config/configuracao.js');
@@ -262,6 +263,7 @@ describe.skipIf(!habilitado)('Plataforma SaaS (e2e, MySQL real)', () => {
     expect(download.headers['content-type']).toBe('application/zip');
     expect(download.headers['content-disposition']).toContain(`filename="${pronto.nomeArquivo}"`);
     const zip = download.body as Buffer;
+    zipDaLojaA = zip;
     expect(createHash('sha256').update(zip).digest('hex')).toBe(pronto.sha256);
     const entradas = lerZip(zip);
     const texto = (nome: string) => entradas.get(nome)!.conteudo.toString('utf8');
@@ -310,6 +312,79 @@ describe.skipIf(!habilitado)('Plataforma SaaS (e2e, MySQL real)', () => {
     const gerente = com(troca.body.data.accessToken);
     await gerente.post('/backups').expect(403);
     await gerente.get(`/backups/${id}/download`).expect(403);
+  });
+
+  async function aguardarImportacao(cliente: ReturnType<typeof com>, id: number, finais: string[]) {
+    for (let tentativa = 0; tentativa < 240; tentativa += 1) {
+      const atual = await cliente.get(`/importacoes/${id}`).expect(200);
+      if (finais.includes(atual.body.data.status)) return atual.body.data;
+      await new Promise((resolver) => setTimeout(resolver, 500));
+    }
+    throw new Error('Importação não terminou a tempo');
+  }
+
+  it('carrega o dump do sistema antigo na loja B, com backup de segurança e funcionários com senha temporária', { timeout: 180_000 }, async () => {
+    const dump = [
+      'CREATE TABLE cad_clientes (id int(8) unsigned NOT NULL auto_increment, nome_cliente varchar(60) default NULL, PRIMARY KEY (id)) TYPE=MyISAM;',
+      `INSERT INTO cad_clientes (id, nome_cliente) VALUES (501,'CLIENTE LEGADO ${marca}'),(502,'OUTRO LEGADO ${marca}');`,
+      'CREATE TABLE cad_login (id int(8) unsigned NOT NULL auto_increment, login varchar(15) default NULL, senha varchar(6) default NULL, id_perfil int(8) unsigned NOT NULL default 1, autoriza char(1) default NULL, PRIMARY KEY (id)) TYPE=MyISAM;',
+      `INSERT INTO cad_login VALUES (900,'L${marca.slice(-8)}','123456',1,'S');`,
+      "CREATE TABLE cad_login_perfil (id_perfil int(8) unsigned NOT NULL auto_increment, nome_perfil varchar(30) default NULL, menu_options varchar(250) default NULL, PRIMARY KEY (id_perfil)) TYPE=MyISAM;",
+      "INSERT INTO cad_login_perfil VALUES (1,'VENDEDOR','SNNN');",
+      'DROP DATABASE nao_deve_rodar;',
+    ].join('\n');
+    const enviado = await lojaB.post('/importacoes').attach('arquivo', Buffer.from(dump, 'latin1'), 'sistema-antigo.sql').expect(202);
+    const analisado = await aguardarImportacao(lojaB, enviado.body.data.id, ['PRONTO', 'FALHOU']);
+    expect(analisado.status).toBe('PRONTO');
+    expect(analisado.analise.registros).toBe(4);
+    await lojaB.post(`/importacoes/${analisado.id}/confirmar`).send({ confirmacao: 'errado' }).expect(400);
+    await lojaA.post(`/importacoes/${analisado.id}/confirmar`).send({ confirmacao: 'SUBSTITUIR' }).expect(404);
+    await lojaB.post(`/importacoes/${analisado.id}/confirmar`).send({ confirmacao: 'SUBSTITUIR' }).expect(202);
+    const final = await aguardarImportacao(lojaB, analisado.id, ['CONCLUIDO', 'FALHOU']);
+    expect(final.status).toBe('CONCLUIDO');
+    expect(final.idBackupSeguranca).toBeTruthy();
+    expect(final.resultado.usuariosCriados).toHaveLength(1);
+
+    const clientes = await lojaB.get(`/clientes?busca=LEGADO ${marca}`).expect(200);
+    expect(clientes.body.meta.total).toBe(2);
+    expect((await lojaA.get(`/clientes?busca=LEGADO ${marca}`).expect(200)).body.meta.total).toBe(0);
+    await lojaB.get('/produtos').expect(200);
+
+    const senhas = await lojaB.get(`/importacoes/${analisado.id}/senhas`).expect(200);
+    expect(senhas.body.data[0].senhaTemporaria).toHaveLength(12);
+    await lojaB.get(`/importacoes/${analisado.id}/senhas`).expect(404);
+    const login = await entrar(senhas.body.data[0].login, senhas.body.data[0].senhaTemporaria);
+    expect(login.status).toBe(200);
+    expect(login.body.data.usuario.trocarSenha).toBe(true);
+
+    const seguranca = await lojaB.get(`/backups/${final.idBackupSeguranca}`).expect(200);
+    expect(seguranca.body.data.nomeArquivo).toMatch(/antes-da-restauracao\.zip$/);
+  });
+
+  it('restaura o ZIP gerado pela própria empresa sem perder os dados nem o acesso', { timeout: 180_000 }, async () => {
+    expect(zipDaLojaA).toBeTruthy();
+    const enviado = await lojaA.post('/importacoes').attach('arquivo', zipDaLojaA!, 'backup-loja-a.zip').expect(202);
+    const analisado = await aguardarImportacao(lojaA, enviado.body.data.id, ['PRONTO', 'FALHOU']);
+    expect(analisado).toMatchObject({ status: 'PRONTO', origem: 'BACKUP_ATRATIVA' });
+    await lojaA.post(`/importacoes/${analisado.id}/confirmar`).send({ confirmacao: 'SUBSTITUIR' }).expect(202);
+    const final = await aguardarImportacao(lojaA, analisado.id, ['CONCLUIDO', 'FALHOU']);
+    expect(final.status).toBe('CONCLUIDO');
+    expect(final.resultado.usuariosCriados).toHaveLength(0);
+    expect((await lojaA.get(`/produtos?busca=${marca}`).expect(200)).body.meta.total).toBe(1);
+    expect((await lojaA.get(`/clientes?busca=SOMENTE A ${marca}`).expect(200)).body.meta.total).toBe(1);
+    expect((await lojaA.get('/vendas').expect(200)).body.meta.total).toBe(1);
+    await lojaA.post('/clientes').send({ nome: `DEPOIS DA RESTAURACAO ${marca}` }).expect(201);
+
+    const historico = await lojaA.get('/backups').expect(200);
+    const restauravel = historico.body.data.find((b: { disponivel: boolean }) => b.disponivel);
+    const preparado = await lojaA.post(`/backups/${restauravel.id}/restaurar`).expect(202);
+    const pronto = await aguardarImportacao(lojaA, preparado.body.data.id, ['PRONTO', 'FALHOU']);
+    expect(pronto.status).toBe('PRONTO');
+    await lojaA.post(`/importacoes/${pronto.id}/cancelar`).expect(200);
+    await lojaB.post(`/backups/${restauravel.id}/restaurar`).expect(404);
+
+    const auditoria = await lojaA.get('/auditoria?acao=backup.&limit=100').expect(200);
+    expect(auditoria.body.data.map((r: { acao: string }) => r.acao)).toContain('backup.restaurado');
   });
 
   it('gera o backup global apenas para o superadministrador, com todos os bancos', { timeout: 120_000 }, async () => {
