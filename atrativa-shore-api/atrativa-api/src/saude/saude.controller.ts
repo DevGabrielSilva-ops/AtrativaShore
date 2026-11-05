@@ -33,6 +33,7 @@ export class SaudeController {
         tabelasAindaMyisam: estado.tabelasMyisam,
         apiCredencial: estado.credencialCriada,
         colunaVrPix: estado.colunaPixCriada,
+        tabelasCarne: estado.tabelasCarneCriadas,
         colunaLimiteCarne: estado.colunaLimiteCarneCriada,
       },
     };

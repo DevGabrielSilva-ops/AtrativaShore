@@ -35,7 +35,8 @@ export interface ResumoCaixa {
   quantidadeVendas: number;
   vendas: { dinheiro: number; pix: number; cartao: number; carne: number; outros: number; total: number };
   descontos: number;
-  recebimentosCarne: { quantidade: number; total: number };
+  recebimentosCarne: { quantidade: number; total: number; dinheiro: number; pix: number; cartao: number };
+  entradas: { dinheiro: number; pix: number; cartao: number; outros: number; total: number };
   totalRecebido: number;
   dinheiroEsperadoNaGaveta: number;
   movimentos: MovimentoCaixa[];
@@ -133,7 +134,15 @@ export class CaixaService {
     return paginado(linhas.map(mapearCaixa), Number(total), paginacao.page, paginacao.limit);
   }
 
+  private async temFormasNoCarne(): Promise<boolean> {
+    const linhas = (await this.fonte.query(
+      "SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'api_recebimentos_carne'",
+    )) as unknown[];
+    return linhas.length > 0;
+  }
+
   async resumo(caixa: Caixa): Promise<ResumoCaixa> {
+    const comFormas = await this.temFormasNoCarne();
     const inicio = caixa.abertura.data ?? dataNoFuso(new Date(), this.config.fusoHorario);
     const fim = caixa.aberto || !caixa.fechamento.data
       ? dataNoFuso(new Date(), this.config.fusoHorario)
@@ -150,8 +159,13 @@ export class CaixaService {
         [terminal, inicio, fim],
       ) as Promise<Array<Record<string, unknown>>>,
       this.fonte.query(
-        `SELECT COUNT(*) AS quantidade, SUM(vr_total) AS total FROM mv_vendas_movimento
-          WHERE terminal = ? AND estornado = 0 AND modo_venda = ? AND data_venda BETWEEN ? AND ?`,
+        `SELECT COUNT(*) AS quantidade, SUM(m.vr_total) AS total,
+                SUM(${comFormas ? 'COALESCE(r.vr_dinheiro, m.vr_total)' : 'm.vr_total'}) AS dinheiro,
+                SUM(${comFormas ? 'COALESCE(r.vr_pix, 0)' : '0'}) AS pix,
+                SUM(${comFormas ? 'COALESCE(r.vr_cartao, 0)' : '0'}) AS cartao
+           FROM mv_vendas_movimento m
+           ${comFormas ? 'LEFT JOIN api_recebimentos_carne r ON r.controle = m.controle' : ''}
+          WHERE m.terminal = ? AND m.estornado = 0 AND m.modo_venda = ? AND m.data_venda BETWEEN ? AND ?`,
         [terminal, MODO_VENDA.RECEBIMENTO_CARNE, inicio, fim],
       ) as Promise<Array<Record<string, unknown>>>,
       this.fonte.query(
@@ -162,9 +176,11 @@ export class CaixaService {
         [terminal, inicio, fim],
       ) as Promise<Array<Record<string, unknown>>>,
       this.fonte.query(
-        `SELECT controle, data_venda, vr_total FROM mv_vendas_movimento
-          WHERE terminal = ? AND estornado = 0 AND modo_venda = ? AND data_venda BETWEEN ? AND ?
-          ORDER BY controle DESC LIMIT 300`,
+        `SELECT m.controle, m.data_venda, m.vr_total${comFormas ? ', r.vr_dinheiro, r.vr_pix, r.vr_cartao' : ''}
+           FROM mv_vendas_movimento m
+           ${comFormas ? 'LEFT JOIN api_recebimentos_carne r ON r.controle = m.controle' : ''}
+          WHERE m.terminal = ? AND m.estornado = 0 AND m.modo_venda = ? AND m.data_venda BETWEEN ? AND ?
+          ORDER BY m.controle DESC LIMIT 300`,
         [terminal, MODO_VENDA.RECEBIMENTO_CARNE, inicio, fim],
       ) as Promise<Array<Record<string, unknown>>>,
     ]);
@@ -176,6 +192,16 @@ export class CaixaService {
     const carne = centavos(totais.carne);
     const outros = centavos(totais.outros);
     const recebido = centavos(recebimentos.total);
+    const recebidoDinheiro = centavos(recebimentos.dinheiro);
+    const recebidoPix = centavos(recebimentos.pix);
+    const recebidoCartao = centavos(recebimentos.cartao);
+    const formasDoRecebimento = (item: Record<string, unknown>) => {
+      const nomes: string[] = [];
+      if (centavos(item.vr_pix) > 0) nomes.push('Pix');
+      if (centavos(item.vr_cartao) > 0) nomes.push('cartão');
+      if (item.vr_dinheiro === undefined || item.vr_dinheiro === null || centavos(item.vr_dinheiro) > 0) nomes.unshift('dinheiro');
+      return nomes.join(' + ');
+    };
 
     const movimentos: MovimentoCaixa[] = [
       ...vendas.map((venda) => ({
@@ -191,7 +217,7 @@ export class CaixaService {
         controle: item.controle as string,
         data: item.data_venda as string,
         hora: horaDoControle(item.controle as string),
-        descricao: 'Recebimento de carnê',
+        descricao: `Recebimento de carnê (${formasDoRecebimento(item)})`,
         valor: numero(item.vr_total),
       })),
     ].sort((a, b) => String(b.controle).localeCompare(String(a.controle)));
@@ -208,10 +234,23 @@ export class CaixaService {
         total: paraReais(somar([dinheiro, pix, cartao, carne, outros])),
       },
       descontos: numero(totais.descontos),
-      recebimentosCarne: { quantidade: Number(recebimentos.quantidade ?? 0), total: paraReais(recebido) },
+      recebimentosCarne: {
+        quantidade: Number(recebimentos.quantidade ?? 0),
+        total: paraReais(recebido),
+        dinheiro: paraReais(recebidoDinheiro),
+        pix: paraReais(recebidoPix),
+        cartao: paraReais(recebidoCartao),
+      },
+      entradas: {
+        dinheiro: paraReais(dinheiro + recebidoDinheiro),
+        pix: paraReais(pix + recebidoPix),
+        cartao: paraReais(cartao + recebidoCartao),
+        outros: paraReais(outros),
+        total: paraReais(somar([dinheiro, pix, cartao, outros, recebido])),
+      },
       totalRecebido: paraReais(somar([dinheiro, pix, cartao, outros, recebido])),
       dinheiroEsperadoNaGaveta: paraReais(
-        somar([paraCentavos(caixa.abertura.valor ?? 0), dinheiro, recebido]),
+        somar([paraCentavos(caixa.abertura.valor ?? 0), dinheiro, recebidoDinheiro]),
       ),
       movimentos,
     };
